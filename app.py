@@ -6,7 +6,6 @@ from crewai import Agent, Task, Crew
 from langchain_openai import ChatOpenAI
 from crewai_tools import CSVSearchTool, JSONSearchTool
 import os
-import sys import os
 import subprocess
 import sys
 
@@ -49,9 +48,6 @@ os.environ["PATH"] = "/usr/local/bin:" + os.environ["PATH"]
 from crewai import Agent, Task, Crew
 from langchain_openai import ChatOpenAI
 from crewai_tools import CSVSearchTool, JSONSearchTool
-
-# Resto do código...
-
 
 # Configurações de API
 API_KEY = st.text_input("Insira sua chave API da Groq:", type="password")
