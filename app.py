@@ -4,9 +4,6 @@ from streamlit.delta_generator import DeltaGenerator  # Importa DeltaGenerator, 
 import os  # Importa o módulo os para interagir com o sistema operacional, como verificar a existência de arquivos.
 from typing import Tuple  # Importa Tuple da biblioteca typing para fornecer tipos de dados mais precisos para funções.
 from groq import Groq  # Importa a biblioteca Groq, possivelmente para uma função não especificada neste código.
-from crewai import Agent, Task, Crew
-from langchain_openai import ChatOpenAI
-from crewai_tools import CSVSearchTool
 
 # Configura o layout da página Streamlit para ser "wide", ocupando toda a largura disponível.
 st.set_page_config(layout="wide")
@@ -137,6 +134,17 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
     return expert_title, phase_two_response  # Retorna o título do especialista e a resposta da segunda fase.
 
+# Função para salvar um novo especialista no arquivo JSON.
+def save_expert(expert_title: str, expert_description: dict):
+    with open(FILEPATH, 'r+') as file:  # Abre o arquivo para leitura e escrita.
+        # Carrega os agentes existentes se o arquivo não estiver vazio, caso contrário, inicia uma lista vazia.
+        agents = json.load(file) if os.path.getsize(FILEPATH) > 0 else []
+        # Adiciona o novo especialista à lista de agentes.
+        agents.append({"agente": expert_title, "descricao": expert_description})
+        file.seek(0)  # Move o ponteiro do arquivo para o início.
+        json.dump(agents, file, indent=4)  # Grava a lista de agentes de volta no arquivo com indentação para melhor legibilidade.
+        file.truncate()  # Remove qualquer conteúdo restante do arquivo após a nova escrita para evitar dados obsoletos.
+
 # Função para refinar uma resposta existente com base na análise e melhoria do conteúdo.
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, groq_api_key: str, references_file: str) -> str:
     try:
@@ -248,15 +256,28 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
         st.error(f"Ocorreu um erro durante a avaliação com RAG: {e}")  # Exibe uma mensagem de erro no Streamlit.
         return ""  # Retorna uma string vazia se ocorrer um erro.
 
-# Função para configurar a ferramenta de busca no CSV
-def configure_csv_search_tool():
-    # Implementar a configuração da ferramenta de busca no CSV aqui
-    pass
+def search_csv_and_json(csv_file, json_file, query):
+    # Lê o arquivo CSV e o arquivo JSON
+    csv_data = pd.read_csv(csv_file)
+    with open(json_file, 'r') as file:
+        json_data = json.load(file)
 
-# Função para criar um expander estilizado
-def expander(title: str, content: str, icon: str):
-    with st.expander(title): 
-        st.markdown(f'<img src="{icon}" style="vertical-align:middle"> {content}', unsafe_allow_html=True)
+    # Realiza uma pesquisa nos dados CSV
+    csv_results = csv_data[csv_data.apply(lambda row: row.astype(str).str.contains(query, case=False).any(), axis=1)]
+    
+    # Realiza uma pesquisa nos dados JSON
+    json_results = []
+    for item in json_data:
+        if query.lower() in json.dumps(item).lower():
+            json_results.append(item)
+    
+    return csv_results, json_results
+
+def display_search_results(csv_results, json_results):
+    st.write("### Resultados da Pesquisa no CSV")
+    st.write(csv_results)
+    st.write("### Resultados da Pesquisa no JSON")
+    st.write(json.dumps(json_results, indent=4))
 
 # Carrega as opções de agentes a partir do arquivo JSON.
 agent_options = load_agent_options()
@@ -280,90 +301,136 @@ with st.expander("Clique para saber mais sobre os Agentes Experts Geomaker."):
     st.write("5. **Desenvolvimento profissional e acadêmico:** Professores podem encontrar recursos e orientações para melhorar suas práticas de ensino, enquanto pesquisadores podem obter insights valiosos para suas investigações.")
     st.write("6. **Inovação e tecnologia educacional:** Nossa plataforma incorpora as mais recentes tecnologias para proporcionar uma experiência educacional moderna e eficiente.")
     st.image("fluxograma agente 4.png")
+    
+    st.markdown("### Explicando o Fluxograma de Utilização\n"
+                "Vamos detalhar o processo de utilização da plataforma, conforme representado no fluxograma, passo a passo. A plataforma é projetada para ajudar usuários a interagir com modelos de linguagem avançados através de uma interface intuitiva. Vamos explorar cada etapa para que você possa aproveitar ao máximo todas as funcionalidades oferecidas.\n"
+                "#### Passo a Passo do Fluxograma\n"
+                "1. **Início**:\n"
+                "   - O fluxo começa com o início da execução do aplicativo.\n"
+                "2. **Importar bibliotecas**:\n"
+                "   - Importação de todas as bibliotecas necessárias, incluindo `streamlit`, `json`, e outras bibliotecas essenciais para o funcionamento da aplicação.\n"
+                "3. **Configurar página**:\n"
+                "   - Configuração inicial da página usando `streamlit` para definir o layout e outras propriedades da página.\n"
+                "4. **Verificar existência de agents.json**:\n"
+                "   - O aplicativo verifica se o arquivo `agents.json` existe no diretório. Este arquivo contém informações sobre os agentes disponíveis.\n"
+                "5. **agents.json existe?**:\n"
+                "   - Decisão condicional:\n"
+                "     - **Sim**:\n"
+                "       - Carregar agentes: O arquivo `agents.json` é carregado.\n"
+                "       - **Erro ao carregar JSON?**:\n"
+                "         - **Sim**: Exibir mensagem de erro: O aplicativo mostra uma mensagem de erro indicando problemas ao carregar o arquivo JSON.\n"
+                "         - **Não**: Mostrar opções de agentes: As opções de agentes carregadas são exibidas.\n"
+                "     - **Não**: Usar opções de agentes padrão: Se o arquivo não for encontrado, o aplicativo usa opções de agentes padrão.\n"
+                "6. **Mostrar opções de agentes**:\n"
+                "   - O aplicativo exibe as opções de agentes para o usuário escolher.\n"
+                "7. **Selecionar modelo e agente**:\n"
+                "   - O usuário seleciona o modelo de linguagem e o agente desejado.\n"
+                "8. **Obter tokens máximos para o modelo**:\n"
+                "   - O aplicativo obtém o número máximo de tokens permitidos para o modelo selecionado.\n"
+                "9. **Solicitar resposta do assistente**:\n"
+                "   - O usuário solicita uma resposta do assistente.\n"
+                "10. **Agente selecionado?**:\n"
+                "    - Decisão condicional:\n"
+                "      - **Não**: Solicitar seleção de agente: O aplicativo pede ao usuário que selecione um agente.\n"
+                "      - **Sim**: Criar cliente Groq: O cliente para interação com a API Groq é criado.\n"
+                "        - Gerar resposta do assistente: O aplicativo gera a resposta do assistente usando o modelo de linguagem selecionado.\n"
+                "        - Retornar resposta do assistente: A resposta gerada é retornada pelo modelo.\n"
+                "        - Exibir resposta do assistente: A resposta é exibida ao usuário.\n"
+                "11. **Solicitar refinamento da resposta**:\n"
+                "    - O usuário pode solicitar um refinamento da resposta fornecida.\n"
+                "12. **Refinar resposta do assistente**:\n"
+                "    - O assistente refina a resposta com base nas novas informações ou correções fornecidas pelo usuário.\n"
+                "13. **Retornar resposta refinada**:\n"
+                "    - A resposta refinada é retornada pelo modelo.\n"
+                "14. **Exibir resposta refinada**:\n"
+                "    - A resposta refinada é exibida ao usuário.\n"
+                "15. **Solicitar avaliação RAG**:\n"
+                "    - O usuário pode solicitar uma avaliação da resposta usando o Rational Agent Generator (RAG).\n"
+                "16. **Avaliar resposta com RAG**:\n"
+                "    - O assistente avalia a resposta utilizando RAG.\n"
+                "17. **Retornar avaliação RAG**:\n"
+                "    - A avaliação do RAG é retornada pelo modelo.\n"
+                "18. **Exibir avaliação RAG**:\n"
+                "    - A avaliação do RAG é exibida ao usuário.\n"
+                "19. **Recarregar página**:\n"
+                "    - O aplicativo recarrega a página para que o usuário possa iniciar um novo processo ou fazer novas seleções.\n"
+                "20. **Fim**:\n"
+                "    - O fluxo termina, e o usuário pode continuar a usar o aplicativo conforme desejado.\n")
 
-# Função para criar e executar a equipe de agentes e tarefas
-def execute_team(expert_title: str, phase_two_response: str, refined_response: str, rag_response: str):
-    # Criação de agentes
-    agent_phase_two = Agent(name="Phase Two Agent", description=phase_two_response, model="gpt-3.5-turbo")
-    agent_refined = Agent(name="Refined Agent", description=refined_response, model="gpt-3.5-turbo")
-    agent_rag = Agent(name="RAG Agent", description=rag_response, model="gpt-3.5-turbo")
+# Define uma caixa de texto para o usuário inserir a pergunta.
+user_input = st.text_area("Insira sua pergunta ou solicitação", height=100)
 
-    # Criação de tarefas
-    task_phase_two = Task(name="Generate Phase Two Response", agent=agent_phase_two, prompt=phase_two_response)
-    task_refined = Task(name="Generate Refined Response", agent=agent_refined, prompt=refined_response)
-    task_rag = Task(name="Evaluate with RAG", agent=agent_rag, prompt=rag_response)
+# Define uma caixa de seleção para o usuário escolher um modelo.
+model_selection = st.selectbox("Escolha um modelo de linguagem", list(MODEL_MAX_TOKENS.keys()))
 
-    # Criação e execução da equipe
-    crew = Crew(name="Geomaker Crew", tasks=[task_phase_two, task_refined, task_rag])
-    crew.execute()
+# Define uma caixa de seleção para o usuário escolher um agente.
+agent_selection = st.selectbox("Escolha um especialista", agent_options)
 
-# Barra lateral com manual de uso
-st.sidebar.image("logo.png", width=200)
+# Define uma caixa de texto para o usuário inserir a chave API do Groq.
+groq_api_key = st.text_input("Insira sua chave API do Groq")
 
-with st.sidebar.expander("Insights do Código"):
-    st.markdown("""
-    O código do Agente Expert Geomaker é um exemplo de uma aplicação de chat baseada em modelos de linguagem (LLMs) utilizando a biblioteca Streamlit e a API Groq. Aqui, vamos analisar detalhadamente o código e discutir suas inovações, pontos positivos e limitações.
+# Define um campo de upload para o usuário enviar um arquivo CSV.
+csv_file = st.file_uploader("Envie um arquivo CSV para busca", type=["csv"])
 
-    **Inovações:**
-    - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA, para gerar respostas mais precisas e personalizadas.
-    - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de linguagem natural de alta performance para gerar respostas precisas.
-    - Refinamento de respostas: O código permite que o usuário refine as respostas do modelo de linguagem, tornando-as mais precisas e relevantes para a consulta.
-    - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do modelo de linguagem.
+# Define um campo de upload para o usuário enviar um arquivo JSON.
+json_file = st.file_uploader("Envie um arquivo JSON para busca", type=["json"])
 
-    **Pontos positivos:**
-    - Personalização: O aplicativo permite que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas de acordo com suas necessidades.
-    - Precisão: A integração com a API Groq e o refinamento de respostas garantem que as respostas sejam precisas e relevantes para a consulta.
-    - Flexibilidade: O código é flexível o suficiente para permitir que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas.
+# Botão para buscar a resposta do assistente.
+if st.button("Buscar Resposta do Assistente"):
+    if groq_api_key:
+        expert_title, phase_two_response = fetch_assistant_response(user_input, user_prompt, model_selection, 0.7, agent_selection, groq_api_key)
+        if expert_title and phase_two_response:
+            st.success("Resposta obtida com sucesso!")
+            st.write(f"**Título do Especialista:** {expert_title}")
+            st.write(f"**Resposta:**\n{phase_two_response}")
+        else:
+            st.error("Não foi possível obter uma resposta. Verifique os dados fornecidos.")
+    else:
+        st.error("Por favor, insira sua chave API do Groq.")
 
-    **Limitações:**
-    - Dificuldade de uso: O aplicativo pode ser difícil de usar para os usuários que não têm experiência com modelos de linguagem ou API.
-    - Limitações de token: O código tem limitações em relação ao número de tokens que podem ser processados pelo modelo de linguagem.
-    - Necessidade de treinamento adicional: O modelo de linguagem pode precisar de treinamento adicional para lidar com consultas mais complexas ou específicas.
+# Botão para refinar a resposta do assistente.
+if st.button("Refinar Resposta"):
+    if groq_api_key and phase_two_response:
+        refined_response = refine_response(expert_title, phase_two_response, user_input, user_prompt, model_selection, 0.7, groq_api_key, json_file)
+        if refined_response:
+            st.success("Resposta refinada com sucesso!")
+            st.write(f"**Resposta Refinada:**\n{refined_response}")
+        else:
+            st.error("Não foi possível refinar a resposta.")
+    else:
+        st.error("Por favor, obtenha uma resposta inicial antes de refiná-la.")
 
-    **Importância de ter colocado instruções em chinês:**
-    A linguagem chinesa tem uma densidade de informação mais alta do que muitas outras línguas, o que significa que os modelos de linguagem precisam processar menos tokens para entender o contexto e gerar respostas precisas. Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens. Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz.
+# Botão para avaliar a resposta com RAG.
+if st.button("Avaliar Resposta com RAG"):
+    if groq_api_key and refined_response:
+        rag_response = evaluate_response_with_rag(user_input, user_prompt, expert_description, refined_response, model_selection, 0.7, groq_api_key)
+        if rag_response:
+            st.success("Resposta avaliada com sucesso!")
+            st.write(f"**Avaliação RAG:**\n{rag_response}")
+        else:
+            st.error("Não foi possível avaliar a resposta com RAG.")
+    else:
+        st.error("Por favor, refine a resposta antes de avaliá-la com RAG.")
 
-    Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas. No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais.
-    """)
+# Botão para pesquisar nos arquivos CSV e JSON.
+if st.button("Pesquisar nos Arquivos"):
+    if csv_file and json_file:
+        query = st.text_input("Insira a consulta de pesquisa")
+        csv_results, json_results = search_csv_and_json(csv_file, json_file, query)
+        display_search_results(csv_results, json_results)
+    else:
+        st.error("Por favor, envie os arquivos CSV e JSON para pesquisa.")
 
-# Exibição do manual de uso com expander estilizado
-expander("Passo 1: Criação da Chave API no Groq Playground", passo_1_content, "https://img.icons8.com/office/30/000000/api-settings.png")
-expander("Passo 2: Acesso ao Streamlit Chat Application", passo_2_content, "https://img.icons8.com/office/30/000000/chat.png")
-expander("Passo 3: Refinamento da Resposta", passo_3_content, "https://img.icons8.com/office/30/000000/edit-property.png")
-expander("Passo 4: Avaliação da Resposta com o RAG", passo_4_content, "https://img.icons8.com/office/30/000000/like--v1.png")
-expander("Passo 5: Conclusão da Consulta", passo_5_content, "https://img.icons8.com/office/30/000000/faq.png")
-expander("Passo 6: Construindo o Prompt", passo_6_content, "https://img.icons8.com/dusk/30/000000/code-file.png")
-st.markdown("<hr>", unsafe_allow_html=True)
+# Botão para recarregar a página.
+if st.button("Recarregar Página"):
+    refresh_page()
 
-# Interface principal
-st.write("Digite sua solicitação para que ela seja respondida pelo especialista ideal.")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    user_input = st.text_area("Por favor, insira sua solicitação:", height=200, key="entrada_usuario")
-    user_prompt = st.text_area("Escreva um prompt ou coloque o texto para consulta para o especialista (opcional):", height=200, key="prompt_usuario")
-    agent_selection = st.selectbox("Selecione um especialista:", agent_options)
-    groq_api_key = st.text_input("Insira sua chave API do Groq:", type="password")
-    model_name = st.selectbox("Escolha o modelo:", list(MODEL_MAX_TOKENS.keys()))
-    temperature = st.slider("Temperatura (ajuste a aleatoriedade da resposta):", min_value=0.0, max_value=1.0, value=0.5)
-
-# Configuração e busca de CSV e JSON
-configure_csv_search_tool()
-
-# Botão para iniciar o processamento
-if st.button("Processar"):
-    expert_title, phase_two_response = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, groq_api_key)
-    refined_response = refine_response(expert_title, phase_two_response, user_input, user_prompt, model_name, temperature, groq_api_key, references_file="")
-    rag_response = evaluate_response_with_rag(user_input, user_prompt, expert_description="", assistant_response=refined_response, model_name=model_name, temperature=temperature, groq_api_key=groq_api_key)
-
-    st.success("Resposta processada com sucesso!")  # Mensagem de sucesso quando o processamento é concluído.
-
-    # Integração das respostas finais em uma nova janela
-    st.markdown(f"### {expert_title}")
-    st.markdown(phase_two_response)
-    st.markdown(refined_response)
-    st.markdown(rag_response)
-
-    # Chama a função para executar a equipe de agentes
-    execute_team(expert_title, phase_two_response, refined_response, rag_response)
+st.markdown(
+    """
+    <div style='text-align: center; font-size: 14px;'>
+    <p><strong>Explore as infinitas possibilidades com os Agentes Experts Geomaker e transforme sua maneira de aprender e ensinar.</strong></p>
+    <p>&copy; 2023 Geomaker. Todos os direitos reservados.</p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
