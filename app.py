@@ -1,12 +1,13 @@
 import json
 import streamlit as st
+import os
 from typing import Tuple
+from groq import Groq
 from crewai import Agent, Task, Crew
 from langchain_openai import ChatOpenAI
 from crewai_tools import CSVSearchTool, JSONSearchTool
-import os
 
-# Define as configurações da página do Streamlit
+# Configura o layout da página Streamlit para ser "wide", ocupando toda a largura disponível.
 st.set_page_config(layout="wide")
 
 # Define o caminho para o arquivo JSON que contém os agentes.
@@ -15,13 +16,13 @@ FILEPATH = "agents.json"
 # Define um dicionário que mapeia nomes de modelos para o número máximo de tokens que cada modelo suporta.
 MODEL_MAX_TOKENS = {
     'mixtral-8x7b-32768': 32768,
-    'llama3-70b-8192': 8192, 
+    'llama3-70b-8192': 8192,
     'llama3-8b-8192': 8192,
     'llama2-70b-4096': 4096,
     'gemma-7b-it': 8192,
 }
 
-# Função para carregar as opções de agentes a partir do arquivo JSON.
+# Define uma função para carregar as opções de agentes a partir do arquivo JSON.
 def load_agent_options() -> list:
     agent_options = ['Escolher um especialista...']
     if os.path.exists(FILEPATH):
@@ -33,15 +34,27 @@ def load_agent_options() -> list:
                 st.error("Erro ao ler o arquivo de agentes. Por favor, verifique o formato.")
     return agent_options
 
-# Função para obter o número máximo de tokens permitido por um modelo específico.
+# Define uma função para obter o número máximo de tokens permitido por um modelo específico.
 def get_max_tokens(model_name: str) -> int:
     return MODEL_MAX_TOKENS.get(model_name, 4096)
 
-# Função para buscar uma resposta do assistente baseado no modelo Groq.
+# Define uma função para recarregar a página do Streamlit.
+def refresh_page():
+    st.rerun()
+
+# Define uma função para salvar um novo especialista no arquivo JSON.
+def save_expert(expert_title: str, expert_description: str):
+    with open(FILEPATH, 'r+') as file:
+        agents = json.load(file) if os.path.getsize(FILEPATH) > 0 else []
+        agents.append({"agente": expert_title, "descricao": expert_description})
+        file.seek(0)
+        json.dump(agents, file, indent=4)
+        file.truncate()
+
+# Função principal para buscar uma resposta do assistente baseado no modelo Groq.
 def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, groq_api_key: str) -> Tuple[str, str]:
     phase_two_response = ""
     expert_title = ""
-
     try:
         client = Groq(api_key=groq_api_key)
 
@@ -60,7 +73,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             )
             return completion.choices[0].message.content
 
-        if agent_selection == "Escolha um especialista...":
+        if agent_selection == "Escolher um especialista...":
             phase_one_prompt = (
                 "Saída e resposta obrigatória somente traduzido em português brasileiro. "
                 "Assuma o papel de um especialista altamente qualificado em engenharia de prompts e com rigor científico. "
@@ -114,7 +127,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     return expert_title, phase_two_response
 
 # Função para salvar um novo especialista no arquivo JSON.
-def save_expert(expert_title: str, expert_description: str):
+def save_expert(expert_title: str, expert_description: dict):
     with open(FILEPATH, 'r+') as file:
         agents = json.load(file) if os.path.getsize(FILEPATH) > 0 else []
         agents.append({"agente": expert_title, "descricao": expert_description})
@@ -228,122 +241,121 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
         st.error(f"Ocorreu um erro durante a avaliação com RAG: {e}")
         return ""
 
-# Função para configurar a ferramenta de busca CSV e JSON.
-def configure_search_tool(csv_file, json_file):
-    if csv_file:
-        csv_tool = CSVSearchTool(csv=csv_file)
-    else:
-        csv_tool = None
-
-    if json_file:
-        json_tool = JSONSearchTool(json=json_file)
-    else:
-        json_tool = None
-
-    return csv_tool, json_tool
-
-# Função para realizar a busca nos arquivos CSV e JSON.
+# Função para buscar no CSV e JSON.
 def search_csv_and_json(csv_file, json_file, query):
-    csv_results = []
-    json_results = []
+    csv_results = None
+    json_results = None
 
-    csv_tool, json_tool = configure_search_tool(csv_file, json_file)
-
-    if csv_tool:
-        csv_results = csv_tool.search(query)
-
-    if json_tool:
-        json_results = json_tool.search(query)
+    if csv_file:
+        csv_search_tool = CSVSearchTool(csv_file)
+        csv_results = csv_search_tool.search(query)
+    
+    if json_file:
+        json_search_tool = JSONSearchTool(json_file)
+        json_results = json_search_tool.search(query)
 
     return csv_results, json_results
 
 # Função para exibir os resultados da busca.
 def display_search_results(csv_results, json_results):
-    st.write("### Resultados da Busca no CSV")
-    for result in csv_results:
-        st.write(result)
-
-    st.write("### Resultados da Busca no JSON")
-    for result in json_results:
-        st.write(result)
+    if csv_results:
+        st.write("### Resultados da busca no CSV")
+        st.write(csv_results)
+    
+    if json_results:
+        st.write("### Resultados da busca no JSON")
+        st.write(json_results)
 
 # Função para criar e executar a equipe de agentes e tarefas.
-def execute_team(phase_two_response, refined_response, rag_response, model_name):
-    researcher = Agent(
-        role="Expert Data Analyst",
-        goal="Extract relevant data from the csv file and structure them as instructed",
-        backstory="You are an expert data analyst for extracting information from csv files as instructed in the task description",
-        allow_delegation=False,
-        verbose=True,
-        tool=CSVSearchTool(csv='FULL_PATH/IT_salaries.csv'),  # Ajuste conforme necessário
-        llm=ChatOpenAI(model=model_name, api_key=groq_api_key)
-    )
-
-    writer = Agent(
-        role="Technical Report Writer",
-        goal="Summarise the researcher's responses in relevant and precise steps and then write technical report on the summarised data using your knowledge",
-        backstory="You are an expert in writing AI-related technical report for individual tech enthusiasts; produce a detailed report in simple language",
-        allow_delegation=False,
-        verbose=True,
-        llm=ChatOpenAI(model=model_name, api_key=groq_api_key)
-    )
-
-    task1 = Task(
-        description="Using the csv file named 'IT_salaries.csv' extract the top 10 rows with the highest salaries in the entire csv file based on the column 'Yearly brutto salary (without bonus and stocks) in EUR' and rank them based on the column 'Position' and column 'Your main technology / programming language'. DO NOT deviate from the actual content of the csv file; then present them in a structured format.",
-        expected_output="top 10 rows based on salaries in a structured format",
-        agent=researcher
-    )
-
-    task2 = Task(
-        description="Using the structured data and insights provided by the Expert Data Analyst agent, develop a precise technical report that highlights the most important skills, technologies, and programming languages needed to obtain highest salaries in the IT sector, then from your knowledge explain a brief overview of the path and timeline required to obtain that skills, technology, or programming language.",
-        expected_output="Technical report and explanation of at least 1000 words",
-        agent=writer
-    )
-
+def execute_team(phase_two_response, refined_response, rag_response, model_name, groq_api_key):
+    client = Groq(api_key=groq_api_key)
+    llm = ChatOpenAI(model=model_name, api_key=groq_api_key)
+    
+    # Criação de agentes
+    agent_phase_two = Agent(name="Phase Two Agent", description=phase_two_response, model=llm)
+    agent_refined = Agent(name="Refined Agent", description=refined_response, model=llm)
+    agent_rag = Agent(name="RAG Agent", description=rag_response, model=llm)
+    
+    # Definição das tarefas
+    task_phase_two = Task(description="Executar a resposta da fase dois.", agent=agent_phase_two)
+    task_refined = Task(description="Refinar a resposta.", agent=agent_refined)
+    task_rag = Task(description="Avaliar a resposta refinada com RAG.", agent=agent_rag)
+    
+    # Criação da equipe
     crew = Crew(
-        agents=[researcher, writer],
-        tasks=[task1, task2],
+        agents=[agent_phase_two, agent_refined, agent_rag],
+        tasks=[task_phase_two, task_refined, task_rag],
         verbose=2
     )
-
+    
+    # Execução da equipe
     result = crew.kickoff()
     return result
 
-# Carrega as opções de agentes a partir do arquivo JSON.
-agent_options = load_agent_options()
+# Configuração da interface do Streamlit.
+st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo." - Alan Kay', use_column_width='always', output_format='auto')
+st.markdown("<h1 style='text-align: center;'>Agentes Alan Kay</h1>", unsafe_allow_html=True)
 
-st.sidebar.image('education.png', width=300)
-st.sidebar.write("### Detalhes do Pedido")
-user_input = st.text_input("Digite a pergunta do usuário:", "")
-user_prompt = st.text_area("Descreva o contexto e os detalhes adicionais da pergunta:", "")
-model_name = st.selectbox("Escolha o modelo:", options=list(MODEL_MAX_TOKENS.keys()))
-temperature = st.slider("Temperatura do modelo:", 0.0, 1.0, 0.7)
-agent_selection = st.selectbox("Escolha um especialista:", options=agent_options)
-groq_api_key = st.text_input("Chave API da Groq:", type="password")
-csv_file = st.file_uploader("Faça o upload do arquivo CSV:", type=["csv"])
-json_file = st.file_uploader("Faça o upload do arquivo JSON:", type=["json"])
-query = st.text_input("Digite a consulta para pesquisa nos arquivos CSV e JSON:", "")
+st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão.</h2>", unsafe_allow_html=True)
 
-if st.button("Enviar Pedido"):
-    expert_title, phase_two_response = fetch_assistant_response(
-        user_input, user_prompt, model_name, temperature, agent_selection, groq_api_key
-    )
-    refined_response = refine_response(
-        expert_title, phase_two_response, user_input, user_prompt, model_name, temperature, groq_api_key, csv_file
-    )
-    rag_response = evaluate_response_with_rag(
-        user_input, user_prompt, expert_title, refined_response, model_name, temperature, groq_api_key
-    )
+st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Descubra como nossa plataforma pode revolucionar a educação.</h2>", unsafe_allow_html=True)
 
-    st.write(f"### Título do Especialista: {expert_title}")
-    st.write(f"### Resposta Inicial: {phase_two_response}")
-    st.write(f"### Resposta Refinada: {refined_response}")
-    st.write(f"### Resposta Avaliada com RAG: {rag_response}")
+with st.expander("Clique para saber mais sobre os Agentes Experts Geomaker."):
+    st.write("1. **Conecte-se instantaneamente com especialistas:** Imagine ter acesso direto a especialistas em diversas áreas do conhecimento, prontos para responder às suas dúvidas e orientar seus estudos e pesquisas.")
+    st.write("2. **Aprendizado personalizado e interativo:** Receba respostas detalhadas e educativas, adaptadas às suas necessidades específicas, tornando o aprendizado mais eficaz e envolvente.")
+    st.write("3. **Suporte acadêmico abrangente:** Desde aulas particulares até orientações para projetos de pesquisa, nossa plataforma oferece um suporte completo para alunos, professores e pesquisadores.")
+    st.write("4. **Avaliação e aprimoramento contínuo:** Utilizando o Rational Agent Generator (RAG), garantimos que todas as respostas fornecidas sejam de alta qualidade e precisão, atendendo aos mais altos padrões acadêmicos e profissionais.")
+    st.write("5. **Tecnologia de ponta ao seu alcance:** Aproveite as mais recentes inovações em inteligência artificial e machine learning para aprimorar sua experiência educacional e alcançar seus objetivos acadêmicos.")
+    st.write("6. **Flexibilidade e conveniência:** Acesse nossa plataforma de qualquer lugar, a qualquer hora, e receba o suporte que você precisa, quando você precisa.")
 
+st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Escolha o modelo e o especialista:</h2>", unsafe_allow_html=True)
+
+user_input = st.text_input("Digite sua pergunta:")
+user_prompt = st.text_area("Adicione informações adicionais (opcional):")
+model_name = st.selectbox("Escolha o modelo de linguagem:", list(MODEL_MAX_TOKENS.keys()))
+temperature = st.slider("Escolha a temperatura do modelo:", min_value=0.0, max_value=1.0, value=0.5)
+agent_selection = st.selectbox("Escolha o especialista:", load_agent_options())
+
+uploaded_files = st.file_uploader("Faça upload dos arquivos CSV e JSON para busca (opcional):", accept_multiple_files=True)
+csv_file = None
+json_file = None
+
+for uploaded_file in uploaded_files:
+    if uploaded_file.name.endswith(".csv"):
+        csv_file = uploaded_file
+    elif uploaded_file.name.endswith(".json"):
+        json_file = uploaded_file
+
+groq_api_key = st.text_input("Insira sua chave API da Groq:", type="password")
+
+if st.button("Obter Resposta"):
+    if not user_input or not model_name or not groq_api_key:
+        st.error("Por favor, preencha todos os campos obrigatórios.")
+    else:
+        expert_title, phase_two_response = fetch_assistant_response(
+            user_input, user_prompt, model_name, temperature, agent_selection, groq_api_key
+        )
+        refined_response = refine_response(
+            expert_title, phase_two_response, user_input, user_prompt, model_name, temperature, groq_api_key, json_file
+        )
+        rag_response = evaluate_response_with_rag(
+            user_input, user_prompt, expert_title, phase_two_response, model_name, temperature, groq_api_key
+        )
+
+        result = execute_team(phase_two_response, refined_response, rag_response, model_name, groq_api_key)
+        st.success("Resposta gerada com sucesso!")
+        st.markdown(result)
+
+if st.button("Buscar no CSV e JSON"):
     if csv_file or json_file:
-        csv_results, json_results = search_csv_and_json(csv_file, json_file, query)
-        display_search_results(csv_results, json_results)
+        query = st.text_input("Digite sua consulta:")
+        if query:
+            csv_results, json_results = search_csv_and_json(csv_file, json_file, query)
+            display_search_results(csv_results, json_results)
+        else:
+            st.error("Por favor, digite uma consulta.")
+    else:
+        st.error("Por favor, faça o upload de pelo menos um arquivo CSV ou JSON.")
 
-    if st.button("Executar Equipe de Agentes e Tarefas"):
-        result = execute_team(phase_two_response, refined_response, rag_response, model_name)
-        st.write(result)
