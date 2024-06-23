@@ -6,6 +6,34 @@ from crewai import Agent, Task, Crew
 from langchain_openai import ChatOpenAI
 from crewai_tools import CSVSearchTool, JSONSearchTool
 import os
+import sys
+
+# Verificar a versão do SQLite
+sqlite_version = os.popen('sqlite3 --version').read().strip()
+if '3.35.0' not in sqlite_version:
+    raise RuntimeError("Unsupported SQLite version. Chroma requires SQLite >= 3.35.0.")
+
+# Instruções para a configuração do ambiente Streamlit
+# (Certifique-se de que estas linhas estão no início do seu script app.py)
+import os
+from pathlib import Path
+
+# Verifique se a versão correta do SQLite está instalada
+def install_sqlite():
+    os.system("wget https://www.sqlite.org/2024/sqlite-autoconf-3400000.tar.gz")
+    os.system("tar xvfz sqlite-autoconf-3400000.tar.gz")
+    os.system("cd sqlite-autoconf-3400000 && ./configure --prefix=/usr/local && make && sudo make install")
+
+install_sqlite()
+
+# Adicionar o novo caminho ao PATH
+os.environ["PATH"] = "/usr/local/bin:" + os.environ["PATH"]
+
+# Verifique novamente a versão do SQLite
+sqlite_version = os.popen('sqlite3 --version').read().strip()
+if '3.35.0' not in sqlite_version:
+    raise RuntimeError("Failed to update SQLite to the required version.")
+
 
 # Instalação e atualização do SQLite
 os.system("apt-get update && apt-get install -y sqlite3")
