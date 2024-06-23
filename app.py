@@ -1,85 +1,70 @@
-import json  # Importa o módulo json para trabalhar com dados JSON.
+import json
+import streamlit as st
+import os
 import pandas as pd
-import streamlit as st  # Importa o Streamlit para criar aplicativos web interativos.
-from streamlit.delta_generator import DeltaGenerator  # Importa DeltaGenerator, que é usado para gerar alterações na interface do Streamlit.
-import os  # Importa o módulo os para interagir com o sistema operacional, como verificar a existência de arquivos.
-from typing import Tuple  # Importa Tuple da biblioteca typing para fornecer tipos de dados mais precisos para funções.
-from groq import Groq  # Importa a biblioteca Groq, possivelmente para uma função não especificada neste código.
+from typing import Tuple
+from groq import Groq
 
-# Configura o layout da página Streamlit para ser "wide", ocupando toda a largura disponível.
 st.set_page_config(layout="wide")
 
-# Define o caminho para o arquivo JSON que contém os agentes.
 FILEPATH = "agents.json"
 
-# Define um dicionário que mapeia nomes de modelos para o número máximo de tokens que cada modelo suporta.
 MODEL_MAX_TOKENS = {
     'mixtral-8x7b-32768': 32768,
-    'llama3-70b-8192': 8192, 
+    'llama3-70b-8192': 8192,
     'llama3-8b-8192': 8192,
     'llama2-70b-4096': 4096,
     'gemma-7b-it': 8192,
 }
 
-# Define uma função para carregar as opções de agentes a partir do arquivo JSON.
 def load_agent_options() -> list:
-    agent_options = ['Escolher um especialista...']  # Inicia a lista de opções com uma opção padrão.
-    if os.path.exists(FILEPATH):  # Verifica se o arquivo de agentes existe.
-        with open(FILEPATH, 'r') as file:  # Abre o arquivo para leitura.
+    agent_options = ['Escolher um especialista...']
+    if os.path.exists(FILEPATH):
+        with open(FILEPATH, 'r') as file:
             try:
-                agents = json.load(file)  # Tenta carregar os dados JSON do arquivo.
-                # Adiciona os nomes dos agentes à lista de opções, se existirem.
+                agents = json.load(file)
                 agent_options.extend([agent["agente"] for agent in agents if "agente" in agent])
-            except json.JSONDecodeError:  # Captura erros de decodificação JSON.
-                st.error("Erro ao ler o arquivo de agentes. Por favor, verifique o formato.")  # Exibe uma mensagem de erro no Streamlit.
-    return agent_options  # Retorna a lista de opções de agentes.
+            except json.JSONDecodeError:
+                st.error("Erro ao ler o arquivo de agentes. Por favor, verifique o formato.")
+    return agent_options
 
-# Define uma função para obter o número máximo de tokens permitido por um modelo específico.
 def get_max_tokens(model_name: str) -> int:
-    # Retorna o número máximo de tokens para o modelo fornecido, ou 4096 se o modelo não estiver no dicionário.
     return MODEL_MAX_TOKENS.get(model_name, 4096)
 
-# Define uma função para recarregar a página do Streamlit.
 def refresh_page():
-    st.rerun()  # Recarrega a aplicação Streamlit.
+    st.experimental_rerun()
 
-# Define uma função para salvar um novo especialista no arquivo JSON.
 def save_expert(expert_title: str, expert_description: str):
-    with open(FILEPATH, 'r+') as file:  # Abre o arquivo para leitura e escrita.
-        # Carrega os agentes existentes se o arquivo não estiver vazio, caso contrário, inicia uma lista vazia.
+    with open(FILEPATH, 'r+') as file:
         agents = json.load(file) if os.path.getsize(FILEPATH) > 0 else []
-        # Adiciona o novo especialista à lista de agentes.
         agents.append({"agente": expert_title, "descricao": expert_description})
-        file.seek(0)  # Move o ponteiro do arquivo para o início.
-        json.dump(agents, file, indent=4)  # Grava a lista de agentes de volta no arquivo com indentação para melhor legibilidade.
-        file.truncate()  # Remove qualquer conteúdo restante do arquivo após a nova escrita para evitar dados obsoletos.
+        file.seek(0)
+        json.dump(agents, file, indent=4)
+        file.truncate()
 
-# Função principal para buscar uma resposta do assistente baseado no modelo Groq.
 def fetch_assistant_response(user_input: str, model_name: str, temperature: float, agent_selection: str, groq_api_key: str) -> Tuple[str, str]:
-    phase_two_response = ""  # Inicializa a variável para armazenar a resposta da segunda fase.
-    expert_title = ""  # Inicializa a variável para armazenar o título do especialista.
+    phase_two_response = ""
+    expert_title = ""
 
     try:
-        client = Groq(api_key=groq_api_key)  # Cria um cliente Groq usando a chave API fornecida.
+        client = Groq(api_key=groq_api_key)
 
-        # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
             completion = client.chat.completions.create(
                 messages=[
-                    {"role": "system", "content": "Você é um assistente útil."},  # Mensagem do sistema definindo o comportamento do assistente.
-                    {"role": "user", "content": prompt},  # Mensagem do usuário contendo o prompt.
+                    {"role": "system", "content": "Você é um assistente útil."},
+                    {"role": "user", "content": prompt},
                 ],
-                model=model_name,  # Nome do modelo a ser usado.
-                temperature=temperature,  # Temperatura para controlar a aleatoriedade das respostas.
-                max_tokens=get_max_tokens(model_name),  # Número máximo de tokens permitido para o modelo.
-                top_p=1,  # Parâmetro para amostragem nuclear.
-                stop=None,  # Sem tokens de parada específicos.
-                stream=False  # Desabilita o streaming de respostas.
+                model=model_name,
+                temperature=temperature,
+                max_tokens=get_max_tokens(model_name),
+                top_p=1,
+                stop=None,
+                stream=False
             )
-            return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
+            return completion.choices[0].message.content
 
-        if agent_selection == "Escolha um especialista...":
-            # Se nenhum especialista específico for selecionado, cria um prompt para determinar o título e descrição do especialista.
+        if agent_selection == "Escolher um especialista...":
             phase_one_prompt = (
                 "Saída e resposta obrigatória somente traduzido em português brasileiro. "
                 "Assuma o papel de um especialista altamente qualificado em engenharia de prompts e com rigor científico. "
@@ -94,24 +79,21 @@ def fetch_assistant_response(user_input: str, model_name: str, temperature: floa
                 "Nos casos que envolvam código e cálculos, apresente em formato 'markdown' e com comentários detalhados em cada linha. "
                 "Resposta deve ser obrigatoriamente em português."
             )
-            phase_one_response = get_completion(phase_one_prompt)  # Obtém a resposta para o prompt da fase um.
-            first_period_index = phase_one_response.find(".")  # Encontra o índice do primeiro ponto na resposta.
-            expert_title = phase_one_response[:first_period_index].strip()  # Extrai o título do especialista até o primeiro ponto.
-            expert_description = phase_one_response[first_period_index + 1:].strip()  # Extrai a descrição do especialista após o primeiro ponto.
-            save_expert(expert_title, expert_description)  # Salva o novo especialista no arquivo JSON.
+            phase_one_response = get_completion(phase_one_prompt.format(user_input=user_input))
+            first_period_index = phase_one_response.find(".")
+            expert_title = phase_one_response[:first_period_index].strip()
+            expert_description = phase_one_response[first_period_index + 1:].strip()
+            save_expert(expert_title, expert_description)
         else:
-            # Se um especialista específico for selecionado, carrega os dados do especialista do arquivo JSON.
-            with open(FILEPATH, 'r') as file:  # Abre o arquivo JSON para leitura.
-                agents = json.load(file)  # Carrega os dados dos agentes do arquivo JSON.
-                # Encontra o agente selecionado na lista de agentes.
+            with open(FILEPATH, 'r') as file:
+                agents = json.load(file)
                 agent_found = next((agent for agent in agents if agent["agente"] == agent_selection), None)
                 if agent_found:
-                    expert_title = agent_found["agente"]  # Obtém o título do especialista.
-                    expert_description = agent_found["descricao"]  # Obtém a descrição do especialista.
+                    expert_title = agent_found["agente"]
+                    expert_description = agent_found["descricao"]
                 else:
-                    raise ValueError("Especialista selecionado não encontrado no arquivo.")  # Lança um erro se o especialista não for encontrado.
+                    raise ValueError("Especialista selecionado não encontrado no arquivo.")
 
-        # Cria um prompt para a segunda fase, onde o especialista selecionado fornece uma resposta detalhada.
         phase_two_prompt = (
             f"Saída e resposta obrigatória somente traduzido em português brasileiro. "
             f"Desempenhando o papel de {expert_title}, um especialista amplamente reconhecido e respeitado em seu campo, "
@@ -127,47 +109,33 @@ def fetch_assistant_response(user_input: str, model_name: str, temperature: floa
             f"Mantenha o padrão de escrita em 10 parágrafos, cada parágrafo com 4 sentenças, e cada sentença separada por vírgulas, "
             f"seguindo sempre as melhores práticas pedagógicas aristotélicas."
         )
-        phase_two_response = get_completion(phase_two_prompt)  # Obtém a resposta para o prompt da segunda fase.
+        phase_two_response = get_completion(phase_two_prompt)
 
-    except Exception as e:  # Captura qualquer exceção que ocorra durante o processo.
-        st.error(f"Ocorreu um erro: {e}")  # Exibe uma mensagem de erro no Streamlit.
-        return "", ""  # Retorna tuplas vazias se ocorrer um erro.
+    except Exception as e:
+        st.error(f"Ocorreu um erro: {e}")
+        return "", ""
 
-    return expert_title, phase_two_response  # Retorna o título do especialista e a resposta da segunda fase.
+    return expert_title, phase_two_response
 
-# Função para salvar um novo especialista no arquivo JSON.
-def save_expert(expert_title: str, expert_description: dict):
-    with open(FILEPATH, 'r+') as file:  # Abre o arquivo para leitura e escrita.
-        # Carrega os agentes existentes se o arquivo não estiver vazio, caso contrário, inicia uma lista vazia.
-        agents = json.load(file) if os.path.getsize(FILEPATH) > 0 else []
-        # Adiciona o novo especialista à lista de agentes.
-        agents.append({"agente": expert_title, "descricao": expert_description})
-        file.seek(0)  # Move o ponteiro do arquivo para o início.
-        json.dump(agents, file, indent=4)  # Grava a lista de agentes de volta no arquivo com indentação para melhor legibilidade.
-        file.truncate()  # Remove qualquer conteúdo restante do arquivo após a nova escrita para evitar dados obsoletos.
-
-# Função para refinar uma resposta existente com base na análise e melhoria do conteúdo.
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, model_name: str, temperature: float, groq_api_key: str, json_file) -> str:
     try:
-        client = Groq(api_key=groq_api_key)  # Cria um cliente Groq usando a chave API fornecida.
+        client = Groq(api_key=groq_api_key)
 
-        # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
             completion = client.chat.completions.create(
                 messages=[
-                    {"role": "system", "content": "Você é um assistente útil."},  # Mensagem do sistema definindo o comportamento do assistente.
-                    {"role": "user", "content": prompt},  # Mensagem do usuário contendo o prompt.
+                    {"role": "system", "content": "Você é um assistente útil."},
+                    {"role": "user", "content": prompt},
                 ],
-                model=model_name,  # Nome do modelo a ser usado.
-                temperature=temperature,  # Temperatura para controlar a aleatoriedade das respostas.
-                max_tokens=get_max_tokens(model_name),  # Número máximo de tokens permitido para o modelo.
-                top_p=1,  # Parâmetro para amostragem nuclear.
-                stop=None,  # Sem tokens de parada específicos.
-                stream=False  # Desabilita o streaming de respostas.
+                model=model_name,
+                temperature=temperature,
+                max_tokens=get_max_tokens(model_name),
+                top_p=1,
+                stop=None,
+                stream=False
             )
-            return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
+            return completion.choices[0].message.content
 
-        # Cria um prompt detalhado para refinar a resposta.
         refine_prompt = (
             f"Saída e resposta obrigatória somente traduzido em português brasileiro. "
             f"Desempenhando o papel de {expert_title}, um especialista amplamente reconhecido e respeitado em seu campo, "
@@ -184,7 +152,6 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"seguindo sempre as melhores práticas pedagógicas aristotélicas."
         )
 
-        # Adiciona um prompt mais detalhado se não houver referências fornecidas.
         if not json_file:
             refine_prompt += (
                 f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, "
@@ -193,35 +160,32 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 f"Utilize sempre um tom profissional e traduza tudo para o português do Brasil."
             )
 
-        refined_response = get_completion(refine_prompt)  # Obtém a resposta refinada a partir do prompt detalhado.
-        return refined_response  # Retorna a resposta refinada.
+        refined_response = get_completion(refine_prompt)
+        return refined_response
 
-    except Exception as e:  # Captura qualquer exceção que ocorra durante o processo de refinamento.
-        st.error(f"Ocorreu um erro durante o refinamento: {e}")  # Exibe uma mensagem de erro no Streamlit.
-        return ""  # Retorna uma string vazia se ocorrer um erro.
+    except Exception as e:
+        st.error(f"Ocorreu um erro durante o refinamento: {e}")
+        return ""
 
-# Função para avaliar a resposta com base em um agente gerador racional (RAG).
-def evaluate_response_with_rag(user_input: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, groq_api_key: str) -> str:
+def evaluate_response_with_rag(user_input: str, expert_description: str, refined_response: str, model_name: str, temperature: float, groq_api_key: str) -> str:
     try:
-        client = Groq(api_key=groq_api_key)  # Cria um cliente Groq usando a chave API fornecida.
+        client = Groq(api_key=groq_api_key)
 
-        # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
             completion = client.chat.completions.create(
                 messages=[
-                    {"role": "system", "content": "Você é um assistente útil."},  # Mensagem do sistema definindo o comportamento do assistente.
-                    {"role": "user", "content": prompt},  # Mensagem do usuário contendo o prompt.
+                    {"role": "system", "content": "Você é um assistente útil."},
+                    {"role": "user", "content": prompt},
                 ],
-                model=model_name,  # Nome do modelo a ser usado.
-                temperature=temperature,  # Temperatura para controlar a aleatoriedade das respostas.
-                max_tokens=get_max_tokens(model_name),  # Número máximo de tokens permitido para o modelo.
-                top_p=1,  # Parâmetro para amostragem nuclear.
-                stop=None,  # Sem tokens de parada específicos.
-                stream=False  # Desabilita o streaming de respostas.
+                model=model_name,
+                temperature=temperature,
+                max_tokens=get_max_tokens(model_name),
+                top_p=1,
+                stop=None,
+                stream=False
             )
-            return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
+            return completion.choices[0].message.content
 
-        # Cria um prompt detalhado para avaliar a resposta usando o agente gerador racional (RAG).
         rag_prompt = (
             f"Saída e resposta obrigatória somente traduzido em português brasileiro. "
             f"Desempenhando o papel de um Agente Gerador Racional (RAG), a vanguarda da inteligência artificial e avaliação racional, "
@@ -237,7 +201,7 @@ def evaluate_response_with_rag(user_input: str, expert_description: str, assista
             f"atendendo aos mais altos padrões científicos e acadêmicos. "
             f"Abaixo está a descrição detalhada do especialista, destacando suas qualificações e expertise: {expert_description}. "
             f"A submissão original da pergunta é a seguinte: {user_input}. "
-            f"A resposta fornecida pelo especialista em português é a seguinte: {assistant_response}. "
+            f"A resposta fornecida pelo especialista em português é a seguinte: {refined_response}. "
             f"Portanto, por favor, faça uma avaliação abrangente da qualidade e precisão da resposta fornecida pelo especialista em português, "
             f"considerando a descrição do especialista e a resposta fornecida. "
             f"Use português para a análise e forneça uma explicação detalhada: "
@@ -250,26 +214,19 @@ def evaluate_response_with_rag(user_input: str, expert_description: str, assista
             f"A resposta deve ser em português do Brasil."
         )
 
-        rag_response = get_completion(rag_prompt)  # Obtém a resposta avaliada a partir do prompt detalhado.
-        return rag_response  # Retorna a resposta avaliada.
+        rag_response = get_completion(rag_prompt)
+        return rag_response
 
-    except Exception as e:  # Captura qualquer exceção que ocorra durante o processo de avaliação com RAG.
-        st.error(f"Ocorreu um erro durante a avaliação com RAG: {e}")  # Exibe uma mensagem de erro no Streamlit.
-        return ""  # Retorna uma string vazia se ocorrer um erro.
+    except Exception as e:
+        st.error(f"Ocorreu um erro durante a avaliação com RAG: {e}")
+        return ""
 
 def search_csv_and_json(csv_file, json_file, query):
-    # Lê o arquivo CSV e o arquivo JSON
     csv_data = pd.read_csv(csv_file)
-    try:
-        json_data = json.load(json_file)
-    except json.JSONDecodeError:
-        st.error("Erro ao ler o arquivo JSON. Por favor, verifique o formato do arquivo.")
-        return None, None
+    json_data = json.load(json_file)
 
-    # Realiza uma pesquisa nos dados CSV
     csv_results = csv_data[csv_data.apply(lambda row: row.astype(str).str.contains(query, case=False).any(), axis=1)]
     
-    # Realiza uma pesquisa nos dados JSON
     json_results = []
     for item in json_data:
         if query.lower() in json.dumps(item).lower():
@@ -283,7 +240,6 @@ def display_search_results(csv_results, json_results):
     st.write("### Resultados da Pesquisa no JSON")
     st.write(json.dumps(json_results, indent=4))
 
-# Carrega as opções de agentes a partir do arquivo JSON.
 agent_options = load_agent_options()
 
 st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo." - Alan Kay', use_column_width='always', output_format='auto')
@@ -292,11 +248,9 @@ st.markdown("<h1 style='text-align: center;'>Agentes Alan Kay</h1>", unsafe_allo
 st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão.</h2>", unsafe_allow_html=True)
 
 st.markdown("<hr>", unsafe_allow_html=True)
-# Título da caixa de informação
 
 st.markdown("<h2 style='text-align: center;'>Descubra como nossa plataforma pode revolucionar a educação.</h2>", unsafe_allow_html=True)
 
-# Conteúdo da caixa de informação
 with st.expander("Clique para saber mais sobre os Agentes Experts Geomaker."):
     st.write("1. **Conecte-se instantaneamente com especialistas:** Imagine ter acesso direto a especialistas em diversas áreas do conhecimento, prontos para responder às suas dúvidas e orientar seus estudos e pesquisas.")
     st.write("2. **Aprendizado personalizado e interativo:** Receba respostas detalhadas e educativas, adaptadas às suas necessidades específicas, tornando o aprendizado mais eficaz e envolvente.")
@@ -361,25 +315,18 @@ with st.expander("Clique para saber mais sobre os Agentes Experts Geomaker."):
                 "20. **Fim**:\n"
                 "    - O fluxo termina, e o usuário pode continuar a usar o aplicativo conforme desejado.\n")
 
-# Define uma caixa de texto para o usuário inserir a pergunta.
 user_input = st.text_area("Insira sua pergunta ou solicitação", height=100)
 
-# Define uma caixa de seleção para o usuário escolher um modelo.
 model_selection = st.selectbox("Escolha um modelo de linguagem", list(MODEL_MAX_TOKENS.keys()))
 
-# Define uma caixa de seleção para o usuário escolher um agente.
 agent_selection = st.selectbox("Escolha um especialista", agent_options)
 
-# Define uma caixa de texto para o usuário inserir a chave API do Groq.
 groq_api_key = st.text_input("Insira sua chave API do Groq")
 
-# Define um campo de upload para o usuário enviar um arquivo CSV.
 csv_file = st.file_uploader("Envie um arquivo CSV para busca", type=["csv"])
 
-# Define um campo de upload para o usuário enviar um arquivo JSON.
 json_file = st.file_uploader("Envie um arquivo JSON para busca", type=["json"])
 
-# Botão para buscar a resposta do assistente.
 if st.button("Buscar Resposta do Assistente"):
     if groq_api_key:
         expert_title, phase_two_response = fetch_assistant_response(user_input, model_selection, 0.7, agent_selection, groq_api_key)
@@ -392,9 +339,8 @@ if st.button("Buscar Resposta do Assistente"):
     else:
         st.error("Por favor, insira sua chave API do Groq.")
 
-# Botão para refinar a resposta do assistente.
 if st.button("Refinar Resposta"):
-    if groq_api_key and phase_two_response:
+    if groq_api_key and 'phase_two_response' in locals():
         refined_response = refine_response(expert_title, phase_two_response, user_input, model_selection, 0.7, groq_api_key, json_file)
         if refined_response:
             st.success("Resposta refinada com sucesso!")
@@ -404,9 +350,8 @@ if st.button("Refinar Resposta"):
     else:
         st.error("Por favor, obtenha uma resposta inicial antes de refiná-la.")
 
-# Botão para avaliar a resposta com RAG.
 if st.button("Avaliar Resposta com RAG"):
-    if groq_api_key and refined_response:
+    if groq_api_key and 'refined_response' in locals():
         rag_response = evaluate_response_with_rag(user_input, expert_description, refined_response, model_selection, 0.7, groq_api_key)
         if rag_response:
             st.success("Resposta avaliada com sucesso!")
@@ -416,20 +361,17 @@ if st.button("Avaliar Resposta com RAG"):
     else:
         st.error("Por favor, refine a resposta antes de avaliá-la com RAG.")
 
-# Botão para pesquisar nos arquivos CSV e JSON.
 if st.button("Pesquisar nos Arquivos"):
     if csv_file and json_file:
         query = st.text_input("Insira a consulta de pesquisa")
         if query:
             csv_results, json_results = search_csv_and_json(csv_file, json_file, query)
-            if csv_results is not None and json_results is not None:
-                display_search_results(csv_results, json_results)
+            display_search_results(csv_results, json_results)
         else:
             st.error("Por favor, insira a consulta de pesquisa.")
     else:
         st.error("Por favor, envie os arquivos CSV e JSON para pesquisa.")
 
-# Botão para recarregar a página.
 if st.button("Recarregar Página"):
     refresh_page()
 
