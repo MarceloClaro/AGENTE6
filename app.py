@@ -1,5 +1,5 @@
 import json  # Importa o módulo json para trabalhar com dados JSON.
-import pandas as pd  # Importa o pandas para trabalhar com dados CSV.
+import pandas as pd
 import streamlit as st  # Importa o Streamlit para criar aplicativos web interativos.
 from streamlit.delta_generator import DeltaGenerator  # Importa DeltaGenerator, que é usado para gerar alterações na interface do Streamlit.
 import os  # Importa o módulo os para interagir com o sistema operacional, como verificar a existência de arquivos.
@@ -41,7 +41,7 @@ def get_max_tokens(model_name: str) -> int:
 
 # Define uma função para recarregar a página do Streamlit.
 def refresh_page():
-    st.experimental_rerun()  # Recarrega a aplicação Streamlit.
+    st.rerun()  # Recarrega a aplicação Streamlit.
 
 # Define uma função para salvar um novo especialista no arquivo JSON.
 def save_expert(expert_title: str, expert_description: str):
@@ -55,7 +55,7 @@ def save_expert(expert_title: str, expert_description: str):
         file.truncate()  # Remove qualquer conteúdo restante do arquivo após a nova escrita para evitar dados obsoletos.
 
 # Função principal para buscar uma resposta do assistente baseado no modelo Groq.
-def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, groq_api_key: str) -> Tuple[str, str]:
+def fetch_assistant_response(user_input: str, model_name: str, temperature: float, agent_selection: str, groq_api_key: str) -> Tuple[str, str]:
     phase_two_response = ""  # Inicializa a variável para armazenar a resposta da segunda fase.
     expert_title = ""  # Inicializa a variável para armazenar o título do especialista.
 
@@ -88,7 +88,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 "Primeiramente, é essencial estabelecer um título que melhor reflita a expertise necessária para fornecer uma resposta completa, aprofundada e clara. "
                 "Depois de determinado, descreva minuciosamente as principais habilidades e qualificações desse especialista, evitando vieses. "
                 "A resposta deve iniciar com o título do especialista, seguido de um ponto final, e então começar com uma descrição clara, educacional e aprofundada, "
-                "que apresente suas características e qualificações que o tornam apto a lidar com a questão proposta: {user_input} e {user_prompt}. "
+                "que apresente suas características e qualificações que o tornam apto a lidar com a questão proposta: {user_input}. "
                 "Essa análise detalhada é crucial para garantir que o especialista selecionado possua o conhecimento e a experiência necessários para fornecer uma resposta "
                 "completa e satisfatória, com precisão de 10.0, alinhada aos mais altos padrões profissionais, científicos e acadêmicos. "
                 "Nos casos que envolvam código e cálculos, apresente em formato 'markdown' e com comentários detalhados em cada linha. "
@@ -116,11 +116,11 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             f"Saída e resposta obrigatória somente traduzido em português brasileiro. "
             f"Desempenhando o papel de {expert_title}, um especialista amplamente reconhecido e respeitado em seu campo, "
             f"como doutor e expert nessa área, ofereça uma resposta abrangente e profunda, cobrindo a questão de forma clara, detalhada, expandida, "
-            f"educacional e concisa: {user_input} e {user_prompt}. "
+            f"educacional e concisa: {user_input}. "
             f"Considerando minha longa experiência e profundo conhecimento das disciplinas relacionadas, "
             f"é necessário abordar cada aspecto com atenção e rigor científico. "
             f"Portanto, irei delinear os principais elementos a serem considerados e investigados, fornecendo uma análise detalhada e baseada em evidências, "
-            f"evitando vieses e citando referências conforme apropriado: {user_prompt}. "
+            f"evitando vieses e citando referências conforme apropriado. "
             f"O objetivo final é fornecer uma resposta completa e satisfatória, alinhada aos mais altos padrões acadêmicos e profissionais, "
             f"atendendo às necessidades específicas da questão apresentada. "
             f"Certifique-se de apresentar a resposta em formato 'markdown', com comentários detalhados em cada linha. "
@@ -147,7 +147,7 @@ def save_expert(expert_title: str, expert_description: dict):
         file.truncate()  # Remove qualquer conteúdo restante do arquivo após a nova escrita para evitar dados obsoletos.
 
 # Função para refinar uma resposta existente com base na análise e melhoria do conteúdo.
-def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, groq_api_key: str, json_file) -> str:
+def refine_response(expert_title: str, phase_two_response: str, user_input: str, model_name: str, temperature: float, groq_api_key: str, json_file) -> str:
     try:
         client = Groq(api_key=groq_api_key)  # Cria um cliente Groq usando a chave API fornecida.
 
@@ -172,7 +172,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"Saída e resposta obrigatória somente traduzido em português brasileiro. "
             f"Desempenhando o papel de {expert_title}, um especialista amplamente reconhecido e respeitado em seu campo, "
             f"como doutor e expert nessa área, ofereça uma resposta abrangente e profunda, cobrindo a questão de forma clara, detalhada, expandida, "
-            f"educacional e concisa: {user_input} e {user_prompt}. "
+            f"educacional e concisa: {user_input}. "
             f"Considerando minha longa experiência e profundo conhecimento das disciplinas relacionadas, "
             f"é necessário abordar cada aspecto com atenção e rigor científico. "
             f"Portanto, irei delinear os principais elementos a serem considerados e investigados, fornecendo uma análise detalhada e baseada em evidências, "
@@ -201,7 +201,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         return ""  # Retorna uma string vazia se ocorrer um erro.
 
 # Função para avaliar a resposta com base em um agente gerador racional (RAG).
-def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, groq_api_key: str) -> str:
+def evaluate_response_with_rag(user_input: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, groq_api_key: str) -> str:
     try:
         client = Groq(api_key=groq_api_key)  # Cria um cliente Groq usando a chave API fornecida.
 
@@ -236,7 +236,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
             f"ajustando dinamicamente os dados mais relevantes e suas funções. Esta abordagem colaborativa garante que a resposta seja precisa e atualizada, "
             f"atendendo aos mais altos padrões científicos e acadêmicos. "
             f"Abaixo está a descrição detalhada do especialista, destacando suas qualificações e expertise: {expert_description}. "
-            f"A submissão original da pergunta é a seguinte: {user_input} e {user_prompt}. "
+            f"A submissão original da pergunta é a seguinte: {user_input}. "
             f"A resposta fornecida pelo especialista em português é a seguinte: {assistant_response}. "
             f"Portanto, por favor, faça uma avaliação abrangente da qualidade e precisão da resposta fornecida pelo especialista em português, "
             f"considerando a descrição do especialista e a resposta fornecida. "
@@ -260,7 +260,11 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
 def search_csv_and_json(csv_file, json_file, query):
     # Lê o arquivo CSV e o arquivo JSON
     csv_data = pd.read_csv(csv_file)
-    json_data = json.load(json_file)
+    try:
+        json_data = json.load(json_file)
+    except json.JSONDecodeError:
+        st.error("Erro ao ler o arquivo JSON. Por favor, verifique o formato do arquivo.")
+        return None, None
 
     # Realiza uma pesquisa nos dados CSV
     csv_results = csv_data[csv_data.apply(lambda row: row.astype(str).str.contains(query, case=False).any(), axis=1)]
@@ -378,7 +382,7 @@ json_file = st.file_uploader("Envie um arquivo JSON para busca", type=["json"])
 # Botão para buscar a resposta do assistente.
 if st.button("Buscar Resposta do Assistente"):
     if groq_api_key:
-        expert_title, phase_two_response = fetch_assistant_response(user_input, user_input, model_selection, 0.7, agent_selection, groq_api_key)
+        expert_title, phase_two_response = fetch_assistant_response(user_input, model_selection, 0.7, agent_selection, groq_api_key)
         if expert_title and phase_two_response:
             st.success("Resposta obtida com sucesso!")
             st.write(f"**Título do Especialista:** {expert_title}")
@@ -391,7 +395,7 @@ if st.button("Buscar Resposta do Assistente"):
 # Botão para refinar a resposta do assistente.
 if st.button("Refinar Resposta"):
     if groq_api_key and phase_two_response:
-        refined_response = refine_response(expert_title, phase_two_response, user_input, user_input, model_selection, 0.7, groq_api_key, json_file)
+        refined_response = refine_response(expert_title, phase_two_response, user_input, model_selection, 0.7, groq_api_key, json_file)
         if refined_response:
             st.success("Resposta refinada com sucesso!")
             st.write(f"**Resposta Refinada:**\n{refined_response}")
@@ -403,7 +407,7 @@ if st.button("Refinar Resposta"):
 # Botão para avaliar a resposta com RAG.
 if st.button("Avaliar Resposta com RAG"):
     if groq_api_key and refined_response:
-        rag_response = evaluate_response_with_rag(user_input, user_input, expert_description, refined_response, model_selection, 0.7, groq_api_key)
+        rag_response = evaluate_response_with_rag(user_input, expert_description, refined_response, model_selection, 0.7, groq_api_key)
         if rag_response:
             st.success("Resposta avaliada com sucesso!")
             st.write(f"**Avaliação RAG:**\n{rag_response}")
@@ -416,8 +420,12 @@ if st.button("Avaliar Resposta com RAG"):
 if st.button("Pesquisar nos Arquivos"):
     if csv_file and json_file:
         query = st.text_input("Insira a consulta de pesquisa")
-        csv_results, json_results = search_csv_and_json(csv_file, json_file, query)
-        display_search_results(csv_results, json_results)
+        if query:
+            csv_results, json_results = search_csv_and_json(csv_file, json_file, query)
+            if csv_results is not None and json_results is not None:
+                display_search_results(csv_results, json_results)
+        else:
+            st.error("Por favor, insira a consulta de pesquisa.")
     else:
         st.error("Por favor, envie os arquivos CSV e JSON para pesquisa.")
 
