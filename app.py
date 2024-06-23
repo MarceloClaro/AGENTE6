@@ -1,9 +1,9 @@
 import json  # Importa o módulo json para trabalhar com dados JSON.
 import streamlit as st  # Importa o Streamlit para criar aplicativos web interativos.
-from streamlit.delta_generator import DeltaGenerator  # Importa DeltaGenerator, que é usado para gerar alterações na interface do Streamlit.
 import os  # Importa o módulo os para interagir com o sistema operacional, como verificar a existência de arquivos.
 from typing import Tuple  # Importa Tuple da biblioteca typing para fornecer tipos de dados mais precisos para funções.
 from groq import Groq  # Importa a biblioteca Groq, possivelmente para uma função não especificada neste código.
+import pandas as pd  # Importa o pandas para manipulação de dados CSV.
 
 # Configura o layout da página Streamlit para ser "wide", ocupando toda a largura disponível.
 st.set_page_config(layout="wide")
@@ -133,17 +133,6 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
         return "", ""  # Retorna tuplas vazias se ocorrer um erro.
 
     return expert_title, phase_two_response  # Retorna o título do especialista e a resposta da segunda fase.
-
-# Função para salvar um novo especialista no arquivo JSON.
-def save_expert(expert_title: str, expert_description: dict):
-    with open(FILEPATH, 'r+') as file:  # Abre o arquivo para leitura e escrita.
-        # Carrega os agentes existentes se o arquivo não estiver vazio, caso contrário, inicia uma lista vazia.
-        agents = json.load(file) if os.path.getsize(FILEPATH) > 0 else []
-        # Adiciona o novo especialista à lista de agentes.
-        agents.append({"agente": expert_title, "descricao": expert_description})
-        file.seek(0)  # Move o ponteiro do arquivo para o início.
-        json.dump(agents, file, indent=4)  # Grava a lista de agentes de volta no arquivo com indentação para melhor legibilidade.
-        file.truncate()  # Remove qualquer conteúdo restante do arquivo após a nova escrita para evitar dados obsoletos.
 
 # Função para refinar uma resposta existente com base na análise e melhoria do conteúdo.
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, groq_api_key: str, references_file: str) -> str:
@@ -378,6 +367,7 @@ json_file = st.file_uploader("Envie um arquivo JSON para busca", type=["json"])
 # Botão para buscar a resposta do assistente.
 if st.button("Buscar Resposta do Assistente"):
     if groq_api_key:
+        user_prompt = "Descrição do especialista e da questão do usuário"  # Define um valor para user_prompt.
         expert_title, phase_two_response = fetch_assistant_response(user_input, user_prompt, model_selection, 0.7, agent_selection, groq_api_key)
         if expert_title and phase_two_response:
             st.success("Resposta obtida com sucesso!")
