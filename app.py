@@ -18,7 +18,7 @@ st.set_page_config(layout="wide")
 
 # Carregar variáveis de ambiente
 load_dotenv()
-groq_api_key = os.getenv('GROQ_API_KEY')
+groq_api_key = os.getenv('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')
 if not groq_api_key:
     raise ValueError("GROQ_API_KEY não foi encontrado nas variáveis de ambiente")
 
