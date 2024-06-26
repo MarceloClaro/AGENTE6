@@ -43,9 +43,9 @@ def process_pdf_files(files):
     texts = []
     metadatas = []
     for file in files:
-        pdf = PyPDF2.PdfFileReader(file)
+        pdf_reader = PyPDF2.PdfReader(file)
         pdf_text = ""
-        for page in pdf.pages:
+        for page in pdf_reader.pages:
             pdf_text += page.extract_text()
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=50)
         file_texts = text_splitter.split_text(pdf_text)
@@ -73,14 +73,13 @@ def process_json_files(files):
     texts = []
     metadatas = []
     for file in files:
-        with open(file, 'r') as f:
-            data = json.load(f)
-            json_text = json.dumps(data, indent=4)
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=50)
-            file_texts = text_splitter.split_text(json_text)
-            texts.extend(file_texts)
-            file_metadatas = [{"source": f"{i}-{file.name}"} for i in range(len(file_texts))]
-            metadatas.extend(file_metadatas)
+        data = json.load(file)
+        json_text = json.dumps(data, indent=4)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=50)
+        file_texts = text_splitter.split_text(json_text)
+        texts.extend(file_texts)
+        file_metadatas = [{"source": f"{i}-{file.name}"} for i in range(len(file_texts))]
+        metadatas.extend(file_metadatas)
     return texts, metadatas
 
 # Inicializar e configurar o modelo de chat
