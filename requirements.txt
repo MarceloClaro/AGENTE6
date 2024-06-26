@@ -4,7 +4,7 @@ altair==5.3.0
 openai==1.35.3
 groq==0.5.0
 crewai==0.32.2
-langchain==0.1.10  # Versão ajustada para ser compatível com crewai
+langchain==0.2.6  # Atualizado para versão mais recente e compatível
 langchain-openai==0.1.7
 PyPDF2==1.26.0
 langchain_community==0.2.6
