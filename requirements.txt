@@ -8,7 +8,7 @@ langchain-openai==0.1.7
 PyPDF2==1.26.0
 langchain
 langchain_community
-crewai-tools==0.1.0
+crewai-tools
 requests==2.32.3
 numpy==1.26.4
 protobuf==4.25.3
