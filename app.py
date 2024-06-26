@@ -18,7 +18,7 @@ from groq import Groq
 st.set_page_config(layout="wide")
 
 # Carregar variáveis de ambiente
-load_dotenv()
+
 groq_api_key = os.getenv('GROQ_API_KEY')
 if not groq_api_key:
     st.error("GROQ_API_KEY não foi encontrado nas variáveis de ambiente. Por favor, configure-o no arquivo .env.")
