@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import json
 import PyPDF2
+import pandas as pd
 from langchain_community.embeddings import OllamaEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
@@ -39,7 +40,7 @@ def load_agent_options() -> list:
                 agents = json.load(file)
                 agent_options.extend([agent["agente"] for agent in agents if "agente" in agent])
             except json.JSONDecodeError:
-                st.error("Erro ao ler o arquivo de Agentes 4  -. Por favor, verifique o formato.")
+                st.error("Erro ao ler o arquivo de Agentes. Por favor, verifique o formato.")
     return agent_options
 
 # Função para obter o número máximo de tokens permitido por um modelo específico
@@ -82,7 +83,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             )
             return completion.choices[0].message.content
 
-        if agent_selection == "Escolha um especialista...":
+        if agent_selection == "Escolher um especialista...":
             phase_one_prompt = (
                 "Assumir o papel de um especialista reconhecido e respeitado em seu campo..."
                 "Para fornecer uma resposta detalhada e precisa à seguinte pergunta..."
@@ -204,7 +205,7 @@ def process_pdf_files(files):
     texts = []
     metadatas = []
     for file in files:
-        pdf = PyPDF2.PdfReader(file.path)
+        pdf = PyPDF2.PdfReader(file)
         pdf_text = ""
         for page in pdf.pages:
             pdf_text += page.extract_text()
@@ -215,18 +216,63 @@ def process_pdf_files(files):
         metadatas.extend(file_metadatas)
     return texts, metadatas
 
+# Função para processar arquivos CSV
+def process_csv_files(files):
+    texts = []
+    metadatas = []
+    for file in files:
+        df = pd.read_csv(file)
+        csv_text = df.to_string()
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=50)
+        file_texts = text_splitter.split_text(csv_text)
+        texts.extend(file_texts)
+        file_metadatas = [{"source": f"{i}-{file.name}"} for i in range(len(file_texts))]
+        metadatas.extend(file_metadatas)
+    return texts, metadatas
+
+# Função para processar arquivos JSON
+def process_json_files(files):
+    texts = []
+    metadatas = []
+    for file in files:
+        data = json.load(file)
+        json_text = json.dumps(data, indent=2)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=50)
+        file_texts = text_splitter.split_text(json_text)
+        texts.extend(file_texts)
+        file_metadatas = [{"source": f"{i}-{file.name}"} for i in range(len(file_texts))]
+        metadatas.extend(file_metadatas)
+    return texts, metadatas
+
+# Função para processar diferentes tipos de arquivos
+def process_files(file_type, files):
+    if file_type == "PDF":
+        return process_pdf_files(files)
+    elif file_type == "CSV":
+        return process_csv_files(files)
+    elif file_type == "JSON":
+        return process_json_files(files)
+    else:
+        raise ValueError("Tipo de arquivo não suportado")
+
 # Inicialização do chat
 @cl.on_chat_start
 async def on_chat_start():
-    files = await cl.AskFileMessage(
-        content="Por favor, envie um ou mais arquivos PDF para começar!",
-        accept=["application/pdf"],
-        max_size_mb=100,
-        max_files=10,
-        timeout=180,
+    file_type = await cl.AskSelectMessage(
+        content="Selecione o tipo de arquivo que deseja enviar:",
+        options=["PDF", "CSV", "JSON"],
+        timeout=180
     ).send()
     
-    texts, metadatas = process_pdf_files(files)
+    files = await cl.AskFileMessage(
+        content=f"Por favor, envie um ou mais arquivos {file_type} para começar!",
+        accept=["application/pdf" if file_type == "PDF" else "text/csv" if file_type == "CSV" else "application/json"],
+        max_size_mb=100,
+        max_files=10,
+        timeout=180
+    ).send()
+    
+    texts, metadatas = process_files(file_type, files)
     
     embeddings = OllamaEmbeddings(model="nomic-embed-text")
     docsearch = await cl.make_async(Chroma.from_texts)(texts, embeddings, metadatas=metadatas)
@@ -236,7 +282,7 @@ async def on_chat_start():
         memory_key="chat_history",
         output_key="answer",
         chat_memory=message_history,
-        return_messages=True,
+        return_messages=True
     )
     
     chain = ConversationalRetrievalChain.from_llm(
@@ -244,7 +290,7 @@ async def on_chat_start():
         chain_type="stuff",
         retriever=docsearch.as_retriever(),
         memory=memory,
-        return_source_documents=True,
+        return_source_documents=True
     )
     
     msg = cl.Message(content=f"Processamento de {len(files)} arquivos concluído. Você já pode fazer perguntas!", elements=[])
@@ -275,13 +321,13 @@ async def main(message: cl.Message):
 
 # Configurar página
 st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo." - Alan Kay', use_column_width='always', output_format='auto')
-st.markdown("<h1 style='text-align: center;'>Agentes 4  - Alan Kay</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>Agentes 4 - Alan Kay</h1>", unsafe_allow_html=True)
 
 st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão.</h2>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # Informação detalhada sobre os Agentes 4
-with st.expander("Clique para saber mais sobre os Agentes 4  - Alan Kay."):
+with st.expander("Clique para saber mais sobre os Agentes 4 - Alan Kay."):
     st.write("1. **Conecte-se instantaneamente com especialistas:** Imagine ter acesso direto a especialistas em diversas áreas do conhecimento, prontos para responder às suas dúvidas e orientar seus estudos e pesquisas.")
     st.write("2. **Aprendizado personalizado e interativo:** Receba respostas detalhadas e educativas, adaptadas às suas necessidades específicas, tornando o aprendizado mais eficaz e envolvente.")
     st.write("3. **Suporte acadêmico abrangente:** Desde aulas particulares até orientações para projetos de pesquisa, nossa plataforma oferece um suporte completo para alunos, professores e pesquisadores.")
@@ -300,17 +346,17 @@ with st.expander("Clique para saber mais sobre os Agentes 4  - Alan Kay."):
                 "3. **Configurar página**:\n"
                 "   - Configuração inicial da página usando `streamlit` para definir o layout e outras propriedades da página.\n"
                 "4. **Verificar existência de agents.json**:\n"
-                "   - O aplicativo verifica se o arquivo `agents.json` existe no diretório. Este arquivo contém informações sobre os Agentes 4  - disponíveis.\n"
+                "   - O aplicativo verifica se o arquivo `agents.json` existe no diretório. Este arquivo contém informações sobre os Agentes 4 - disponíveis.\n"
                 "5. **agents.json existe?**:\n"
                 "   - Decisão condicional:\n"
                 "     - **Sim**:\n"
-                "       - Carregar Agentes 4  -: O arquivo `agents.json` é carregado.\n"
+                "       - Carregar Agentes 4 -: O arquivo `agents.json` é carregado.\n"
                 "       - **Erro ao carregar JSON?**:\n"
                 "         - **Sim**: Exibir mensagem de erro: O aplicativo mostra uma mensagem de erro indicando problemas ao carregar o arquivo JSON.\n"
-                "         - **Não**: Mostrar opções de Agentes 4  -: As opções de Agentes 4  - carregadas são exibidas.\n"
-                "     - **Não**: Usar opções de Agentes 4  - padrão: Se o arquivo não for encontrado, o aplicativo usa opções de Agentes 4  - padrão.\n"
-                "6. **Mostrar opções de Agentes 4  -**:\n"
-                "   - O aplicativo exibe as opções de Agentes 4  - para o usuário escolher.\n"
+                "         - **Não**: Mostrar opções de Agentes 4 -: As opções de Agentes 4 - carregadas são exibidas.\n"
+                "     - **Não**: Usar opções de Agentes 4 - padrão: Se o arquivo não for encontrado, o aplicativo usa opções de Agentes 4 - padrão.\n"
+                "6. **Mostrar opções de Agentes 4 -**:\n"
+                "   - O aplicativo exibe as opções de Agentes 4 - para o usuário escolher.\n"
                 "7. **Selecionar modelo e agente**:\n"
                 "   - O usuário seleciona o modelo de linguagem e o agente desejado.\n"
                 "8. **Obter tokens máximos para o modelo**:\n"
@@ -371,17 +417,88 @@ with st.expander("Clique para saber mais sobre o Rational Agent Generator (RAG)"
                 "3. **Configurar página**:\n"
                 "   - Configuração inicial da página usando `streamlit` para definir o layout e outras propriedades da página.\n"
                 "4. **Verificar existência de agents.json**:\n"
-                "   - O aplicativo verifica se o arquivo `agents.json` existe no diretório. Este arquivo contém informações sobre os Agentes 4  - disponíveis.\n"
+                "   - O aplicativo verifica se o arquivo `agents.json` existe no diretório. Este arquivo contém informações sobre os Agentes 4 - disponíveis.\n"
                 "5. **agents.json existe?**:\n"
                 "   - Decisão condicional:\n"
                 "     - **Sim**:\n"
-                "       - Carregar Agentes 4  -: O arquivo `agents.json` é carregado.\n"
+                "       - Carregar Agentes 4 -: O arquivo `agents.json` é carregado.\n"
                 "       - **Erro ao carregar JSON?**:\n"
                 "         - **Sim**: Exibir mensagem de erro: O aplicativo mostra uma mensagem de erro indicando problemas ao carregar o arquivo JSON.\n"
-                "         - **Não**: Mostrar opções de Agentes 4  -: As opções de Agentes 4  - carregadas são exibidas.\n"
-                "     - **Não**: Usar opções de Agentes 4  - padrão: Se o arquivo não for encontrado, o aplicativo usa opções de Agentes 4  - padrão.\n"
-                "6. **Mostrar opções de Agentes 4  -**:\n"
-                "   - O aplicativo exibe as opções de Agentes 4  - para o usuário escolher.\n"
+                "         - **Não**: Mostrar opções de Agentes 4 -: As opções de Agentes 4 - carregadas são exibidas.\n"
+                "     - **Não**: Usar opções de Agentes 4 - padrão: Se o arquivo não for encontrado, o aplicativo usa opções de Agentes 4 - padrão.\n"
+                "6. **Mostrar opções de Agentes 4 -**:\n"
+                "   - O aplicativo exibe as opções de Agentes 4 - para o usuário escolher.\n"
+                "7. **Selecionar modelo e agente**:\n"
+                "   - O usuário seleciona o modelo de linguagem e o agente desejado.\n"
+                "8. **Obter tokens máximos para o modelo**:\n"
+                "   - O aplicativo obtém o número máximo de tokens permitidos para o modelo selecionado.\n"
+                "9. **Solicitar resposta do assistente**:\n"
+                "   - O usuário solicita uma resposta do assistente.\n"
+                "10. **Agente selecionado?**:\n"
+                "    - Decisão condicional:\n"
+                "      - **Não**: Solicitar seleção de agente: O aplicativo pede ao usuário que selecione um agente.\n"
+                "      - **Sim**: Criar cliente Groq: O cliente para interação com a API Groq é criado.\n"
+                "        - Gerar resposta do assistente: O aplicativo gera a resposta do assistente usando o modelo de linguagem selecionado.\n"
+                "        - Retornar resposta do assistente: A resposta gerada é retornada pelo modelo.\n"
+                "        - Exibir resposta do assistente: A resposta é exibida ao usuário.\n"
+                "11. **Solicitar refinamento da resposta**:\n"
+                "    - O usuário pode solicitar um refinamento da resposta fornecida.\n"
+                "12. **Refinar resposta do assistente**:\n"
+                "    - O assistente refina a resposta com base nas novas informações ou correções fornecidas pelo usuário.\n"
+                "13. **Retornar resposta refinada**:\n"
+                "    - A resposta refinada é retornada pelo modelo.\n"
+                "14. **Exibir resposta refinada**:\n"
+                "    - A resposta refinada é exibida ao usuário.\n"
+                "15. **Solicitar avaliação RAG**:\n"
+                "    - O usuário pode solicitar uma avaliação da resposta usando o Rational Agent Generator (RAG).\n"
+                "16. **Avaliar resposta com RAG**:\n"
+                "    - O assistente avalia a resposta utilizando RAG.\n"
+                "17. **Retornar avaliação RAG**:\n"
+                "    - A avaliação do RAG é retornada pelo modelo.\n"
+                "18. **Exibir avaliação RAG**:\n"
+                "    - A avaliação do RAG é exibida ao usuário.\n"
+                "19. **Fim**:\n"
+                "    - O fluxo termina.\n"
+                "### Conclusão\n"
+                "Este fluxograma detalha de maneira clara e organizada todas as etapas que o usuário deve seguir para utilizar a plataforma de maneira eficaz. Com este guia, esperamos que você possa explorar todas as funcionalidades disponíveis e tirar o máximo proveito das ferramentas avançadas de interação com modelos de linguagem.\n"
+                "Aproveite para experimentar, fazer perguntas complexas e refinar suas interações para obter as respostas mais precisas e relevantes possíveis.\n")
+
+# Informação sobre o Rational Agent Generator (RAG)
+with st.expander("Clique para saber mais sobre o Rational Agent Generator (RAG)"):
+    st.info("""
+    O Rational Agent Generator (RAG) é usado para avaliar a resposta fornecida pelo especialista. Aqui está uma explicação mais detalhada de como ele é usado:
+    
+    1. Quando o usuário busca uma resposta do especialista, a função `fetch_assistant_response()` é chamada. Nessa função, é gerado um prompt para o modelo de linguagem que representa a solicitação do usuário e o prompt específico para o especialista escolhido. A resposta inicial do especialista é então obtida usando o Groq API.
+    
+    2. Se o usuário optar por refinar a resposta, a função `refine_response()` é chamada. Nessa função, é gerado um novo prompt que inclui a resposta inicial do especialista e solicita uma resposta mais detalhada e aprimorada, levando em consideração as referências fornecidas pelo usuário. A resposta refinada é obtida usando novamente o Groq API.
+    
+    3. Se o usuário optar por avaliar a resposta com o RAG, a função `evaluate_response_with_rag()` é chamada. Nessa função, é gerado um prompt que inclui a descrição do especialista e as respostas inicial e refinada do especialista. O RAG é então usado para avaliar a qualidade e a precisão da resposta do especialista.
+    
+    Em resumo, o RAG é usado como uma ferramenta para avaliar e melhorar a qualidade das respostas fornecidas pelos especialistas, garantindo que atendam aos mais altos padrões de excelência e rigor científico.
+    """)
+    st.image("diagram agente 4.png")
+
+    st.markdown("### Explicando o Fluxograma de Funcionamento\n"
+                "Neste post, vamos detalhar o processo de utilização da plataforma, conforme representado no fluxograma, passo a passo. A plataforma é projetada para ajudar usuários a interagir com modelos de linguagem avançados através de uma interface intuitiva. Vamos explorar cada etapa para que você possa aproveitar ao máximo todas as funcionalidades oferecidas.\n"
+                "#### Passo a Passo do Fluxograma de funcionamento\n"
+                "1. **Início**:\n"
+                "   - O fluxo começa com o início da execução do aplicativo.\n"
+                "2. **Importar bibliotecas**:\n"
+                "   - Importação de todas as bibliotecas necessárias, incluindo `streamlit`, `json`, e outras bibliotecas essenciais para o funcionamento da aplicação.\n"
+                "3. **Configurar página**:\n"
+                "   - Configuração inicial da página usando `streamlit` para definir o layout e outras propriedades da página.\n"
+                "4. **Verificar existência de agents.json**:\n"
+                "   - O aplicativo verifica se o arquivo `agents.json` existe no diretório. Este arquivo contém informações sobre os Agentes 4 - disponíveis.\n"
+                "5. **agents.json existe?**:\n"
+                "   - Decisão condicional:\n"
+                "     - **Sim**:\n"
+                "       - Carregar Agentes 4 -: O arquivo `agents.json` é carregado.\n"
+                "       - **Erro ao carregar JSON?**:\n"
+                "         - **Sim**: Exibir mensagem de erro: O aplicativo mostra uma mensagem de erro indicando problemas ao carregar o arquivo JSON.\n"
+                "         - **Não**: Mostrar opções de Agentes 4 -: As opções de Agentes 4 - carregadas são exibidas.\n"
+                "     - **Não**: Usar opções de Agentes 4 - padrão: Se o arquivo não for encontrado, o aplicativo usa opções de Agentes 4 - padrão.\n"
+                "6. **Mostrar opções de Agentes 4 -**:\n"
+                "   - O aplicativo exibe as opções de Agentes 4 - para o usuário escolher.\n"
                 "7. **Selecionar modelo e agente**:\n"
                 "   - O usuário seleciona o modelo de linguagem e o agente desejado.\n"
                 "8. **Obter tokens máximos para o modelo**:\n"
@@ -436,7 +553,7 @@ passo_1_content = """
 """
 
 passo_2_content = """
-1. Acesse o Streamlit Chat Application em https://agente4.streamlit.app/#87cc9dff (Agentes 4  - Alan Kay).
+1. Acesse o Streamlit Chat Application em https://agente4.streamlit.app/#87cc9dff (Agentes 4 - Alan Kay).
 
 2. Na interface do aplicativo, você verá um campo para inserir a sua chave API do Groq. Cole a chave que você copiou no Passo 1.
 
@@ -592,155 +709,37 @@ st.sidebar.image("logo.png", width=200)
 
 with st.sidebar.expander("Insights do Código"):
     st.markdown("""
-    O código do Agentes 4  - Alan Kay é um exemplo de uma aplicação de chat baseada em modelos de linguagem (LLMs) utilizando a biblioteca Streamlit e a API Groq. Aqui, vamos analisar detalhadamente o código e discutir suas inovações, pontos positivos e limitações.
+    O código do Agentes 4 - Alan Kay é um exemplo de uma aplicação de chat baseada em modelos de linguagem (LLMs) utilizando a biblioteca Streamlit e a API Groq. Aqui, vamos analisar detalhadamente o código e discutir suas inovações, pontos positivos e limitações.
 
     **Inovações:**
     - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA, para gerar respostas mais precisas e personalizadas.
     - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de linguagem natural de alta performance para gerar respostas precisas.
     - Refinamento de respostas: O código permite que o usuário refine as respostas do modelo de linguagem, tornando-as mais precisas e relevantes para a consulta.
-    - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do modelo de linguagem.
+    - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas geradas pelos especialistas.
 
-    **Pontos positivos:**
-    - Personalização: O aplicativo permite que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas de acordo com suas necessidades.
-    - Precisão: A integração com a API Groq e o refinamento de respostas garantem que as respostas sejam precisas e relevantes para a consulta.
-    - Flexibilidade: O código é flexível o suficiente para permitir que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas.
+    **Pontos Positivos:**
+    - Interface de usuário intuitiva: A interface de usuário baseada em Streamlit é fácil de usar e permite uma interação fluida com o aplicativo.
+    - Flexibilidade na escolha de modelos: A possibilidade de escolher entre diferentes modelos de linguagem permite que o usuário selecione o mais adequado para suas necessidades.
+    - Opções de refinamento e avaliação: As funcionalidades de refinamento e avaliação de respostas garantem que o usuário obtenha respostas de alta qualidade e relevância.
 
     **Limitações:**
-    - Dificuldade de uso: O aplicativo pode ser difícil de usar para os usuários que não têm experiência com modelos de linguagem ou API.
-    - Limitações de token: O código tem limitações em relação ao número de tokens que podem ser processados pelo modelo de linguagem.
-    - Necessidade de treinamento adicional: O modelo de linguagem pode precisar de treinamento adicional para lidar com consultas mais complexas ou específicas.
+    - Dependência de chave API: O aplicativo depende de uma chave API do Groq para funcionar, o que pode limitar o acesso de alguns usuários.
+    - Complexidade do código: O código pode ser complexo para usuários sem experiência em programação, especialmente na configuração e integração com a API Groq.
+    - Limitação de tokens: Cada modelo de linguagem tem uma limitação no número de tokens que pode processar, o que pode afetar a qualidade das respostas para consultas mais longas.
 
-    **Importância de ter colocado instruções em chinês:**
-    A linguagem chinesa tem uma densidade de informação mais alta do que muitas outras línguas, o que significa que os modelos de linguagem precisam processar menos tokens para entender o contexto e gerar respostas precisas. Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens. Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz.
+    **Sugestões de Melhoria:**
+    - Automação da obtenção de chave API: Incluir um guia passo a passo para a obtenção da chave API diretamente na interface do aplicativo pode facilitar o acesso dos usuários.
+    - Documentação detalhada: Fornecer uma documentação detalhada sobre a configuração e uso do aplicativo pode ajudar usuários iniciantes a entender e utilizar todas as funcionalidades.
+    - Expansão do suporte a arquivos: Adicionar suporte para mais tipos de arquivos, além de PDF e JSON, pode tornar o aplicativo mais versátil e útil para diferentes tipos de consultas.
 
-    Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas. No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais.
-""")
+    Em resumo, o Agentes 4 - Alan Kay é um aplicativo poderoso e inovador que permite a interação com modelos de linguagem avançados através de uma interface intuitiva. Com algumas melhorias, ele pode se tornar uma ferramenta ainda mais acessível e versátil para usuários de diferentes níveis de experiência.
+    """)
 
-# Adicionar uma caixa de análise de expertise no sidebar com expander
-with st.sidebar.expander("Análise de Expertise do Código"):
+with st.sidebar.expander("Informações Importantes"):
     st.markdown("""
-    ### Análise de Expertise do Código
-
-    O código fornecido implementa um sistema de chat interativo com especialistas usando a biblioteca Streamlit para a interface de usuário e um modelo de linguagem baseado em API para gerar respostas. A seguir está uma análise detalhada da expertise refletida no código, considerando diferentes aspectos do desenvolvimento de chats com modelos de linguagem (LLMs).
-
-    #### Pontos Positivos
-
-    1. **Configuração da Interface de Usuário**:
-       - Uso adequado do Streamlit para criar uma interface web interativa, permitindo a seleção de especialistas e a entrada de consultas pelo usuário.
-       - Boa estruturação visual com o uso de `st.markdown` e `st.expander` para apresentar informações de forma organizada e acessível.
-
-    2. **Gestão de Arquivos e Dados**:
-       - Carregamento e armazenamento de dados JSON (`agents.json`) para manter informações sobre os especialistas, utilizando boas práticas de manuseio de arquivos.
-       - Tratamento de exceções ao carregar dados JSON, com mensagens de erro amigáveis (`json.JSONDecodeError`).
-
-    3. **Integração com API Externa**:
-       - Uso da biblioteca `groq` para interagir com uma API de modelo de linguagem, incluindo a configuração de chaves API e parâmetros de consulta.
-       - Funções específicas para obter respostas do modelo (`fetch_assistant_response`, `refine_response`, `evaluate_response_with_rag`), demonstrando uma boa modularidade.
-
-    4. **Flexibilidade na Escolha de Modelos**:
-       - Inclusão de um dicionário `MODEL_MAX_TOKENS` para definir limites de tokens para diferentes modelos, permitindo flexibilidade na escolha de modelos com diferentes capacidades.
-       - Interface de seleção para escolher entre diferentes modelos de linguagem, ajustando dinamicamente os parâmetros (`max_tokens`, `temperature`).
-
-    5. **Funcionalidades de Refinamento e Avaliação**:
-       - Implementação de um mecanismo para refinar respostas, permitindo uma análise mais profunda e a melhoria da precisão das respostas geradas.
-       - Uso de um sistema de avaliação com Rational Agent Generator (RAG) para assegurar a qualidade e precisão das respostas, incluindo diversas técnicas de análise (SWOT, ANOVA, Q-Statistics).
-
-    #### Pontos a Melhorar
-
-    1. **Segurança e Validação de Entrada**:
-       - Falta de sanitização das entradas do usuário, o que pode levar a vulnerabilidades como injeção de código ou dados maliciosos.
-       - As chaves da API são inseridas diretamente no código, o que pode não ser seguro. Sugere-se o uso de variáveis de ambiente ou mecanismos seguros de armazenamento.
-
-    2. **Gestão de Sessões e Estado**:
-       - Uso de variáveis de sessão (`st.session_state`) para manter o estado da resposta do assistente e outras informações, mas a implementação poderia ser mais robusta para evitar perda de dados entre interações.
-
-    3. **Documentação e Comentários**:
-       - O código se beneficiaria de comentários mais detalhados e documentação para melhorar a legibilidade e a manutenção futura.
-       - A inclusão de exemplos de uso e uma descrição mais detalhada das funções principais ajudaria outros desenvolvedores a entender melhor o fluxo do código.
-
-    4. **Eficiência e Desempenho**:
-       - Dependendo do tamanho dos arquivos JSON e da quantidade de dados processados, a leitura e escrita de arquivos podem se tornar um gargalo. Considere otimizações como a leitura parcial ou o uso de uma base de dados.
-
-    ### Nota Final de Expertise
-
-    Baseando-se nos pontos destacados, a expertise no desenvolvimento deste código pode ser avaliada como alta, especialmente considerando a integração de diferentes componentes (interface, API de modelo de linguagem, gerenciamento de dados) e a implementação de funcionalidades avançadas de avaliação e refinamento de respostas.
-
-    **Nota: 9.5/10**
-
-    Esta avaliação reflete um bom equilíbrio entre funcionalidade, usabilidade e boas práticas de desenvolvimento, com algumas áreas para melhorias em termos de segurança, documentação e eficiência.
+    1. A chave API do Groq é necessária para utilizar o aplicativo. 
+    2. Você pode criar sua própria chave API no site do Groq.
+    3. O aplicativo oferece suporte a múltiplos modelos de linguagem, incluindo LLaMA.
+    4. As funcionalidades de refinamento e avaliação de respostas garantem alta qualidade nas respostas fornecidas pelos especialistas.
+    5. A interface de usuário baseada em Streamlit é intuitiva e fácil de usar.
     """)
-
-# Audio player para melhorar a experiencia do usuario
-def main():
-    st.sidebar.title("Controle de Áudio")
-    
-    # Lista de arquivos MP3
-    mp3_files = {
-        "Agente Alan Kay": "AGENTE-4AlanKay1.mp3",
-        "Agente 4": "agente4.mp3",
-        "Agente Alan-Kay": "AGENTEAlan-Kay.mp3",
-        "Instrumental": "ambienteindia.mp3"
-    }
-
-    # Controle de seleção de música
-    selected_mp3 = st.sidebar.radio("Escolha uma música", list(mp3_files.keys()))
-
-    # Opção de loop
-    loop = st.sidebar.checkbox("Repetir música")
-
-    # Carregar e exibir o player de áudio
-    audio_placeholder = st.sidebar.empty()
-    if selected_mp3:
-        mp3_path = mp3_files[selected_mp3]
-        try:
-            with open(mp3_path, "rb") as audio_file:
-                audio_bytes = audio_file.read()
-                audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
-                loop_attr = "loop" if loop else ""
-                audio_html = f"""
-                <audio id="audio-player" controls autoplay {loop_attr}>
-                  <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
-                  Seu navegador não suporta o elemento de áudio.
-                </audio>
-                """
-                audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
-        except FileNotFoundError:
-            audio_placeholder.error(f"Arquivo {mp3_path} não encontrado.")
-
-    # Carregar e exibir o código Python
-    st.sidebar.write("""
-        Código principal do Agentes Alan Kay
-    """)
-    try:
-        with open("runBR.py", "r") as file:
-            code = file.read()
-            st.sidebar.code(code, language='python')
-    except FileNotFoundError:
-        st.sidebar.error("Arquivo runBR.py não encontrado.")
-
-    st.sidebar.write("""
-        Código dos Agentes contidos no arquivo agents.json
-    """)
-    try:
-        with open("agentsBR.json", "r") as file:
-            code = file.read()
-            st.sidebar.code(code, language='json')
-    except FileNotFoundError:
-        st.sidebar.error("Arquivo agentsBR.json não encontrado.")
-        
-    # Informações de contato
-    st.sidebar.image("eu.ico", width=80)
-    st.sidebar.write("""
-    Projeto Geomaker + IA 
-    - Professor: Marcelo Claro.
-
-    Contatos: marceloclaro@gmail.com
-
-    Whatsapp: (88)981587145
-
-    Instagram: [https://www.instagram.com/marceloclaro.geomaker/](https://www.instagram.com/marceloclaro.geomaker/)
-    """)
-
-if __name__ == "__main__":
-    main()
-
