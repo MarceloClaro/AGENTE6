@@ -6,7 +6,7 @@ groq==0.5.0
 crewai==0.32.2
 langchain-openai==0.1.7
 PyPDF2==1.26.0
-langchain==0.0.16
+langchain
 langchain_community
 crewai-tools==0.1.0
 requests==2.32.3
@@ -32,3 +32,4 @@ chromadb
 dataclasses-json
 markdown-it-py
 jsonschema-specifications
+os
