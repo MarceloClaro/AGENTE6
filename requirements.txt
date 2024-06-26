@@ -7,7 +7,7 @@ crewai==0.32.2
 langchain-openai==0.1.7
 PyPDF2==1.26.0
 langchain==0.0.16
-langchain_community==0.1.0
+langchain_community
 crewai-tools==0.1.0
 requests==2.32.3
 numpy==1.26.4
