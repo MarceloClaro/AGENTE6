@@ -18,9 +18,10 @@ st.set_page_config(layout="wide")
 
 # Carregar variáveis de ambiente
 load_dotenv()
-groq_api_key = os.getenv('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')
+groq_api_key = os.getenv('GROQ_API_KEY')
 if not groq_api_key:
-    raise ValueError("GROQ_API_KEY não foi encontrado nas variáveis de ambiente")
+    st.error("GROQ_API_KEY não foi encontrado nas variáveis de ambiente. Por favor, configure-o no arquivo .env.")
+    groq_api_key = st.text_input("Digite sua chave de API Groq:", type="password")
 
 # Dicionário de modelos e seus tokens máximos
 MODEL_MAX_TOKENS = {
