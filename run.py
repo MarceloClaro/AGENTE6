@@ -51,8 +51,8 @@ def save_expert(expert_title: str, expert_description: dict):
         json.dump(agents, file, indent=4)  # Grava a lista de Agentes de volta no arquivo com indentação para melhor legibilidade.
         file.truncate()  # Remove qualquer conteúdo restante do arquivo após a nova escrita para evitar dados obsoletos.
 
-# Função principal para buscar uma resposta do assistente baseado no modelo Groq.
-def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, groq_api_key: str) -> Tuple[str, str]:
+# Função para buscar uma resposta do assistente baseado no modelo Groq, incluindo o histórico.
+def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, groq_api_key: str, chat_history: list) -> Tuple[str, str]:
     phase_two_response = ""  # Inicializa a variável para armazenar a resposta da segunda fase.
     expert_title = ""  # Inicializa a variável para armazenar o título do especialista.
 
@@ -116,6 +116,11 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 else:
                     raise ValueError("Especialista selecionado não encontrado no arquivo.")  # Lança um erro se o especialista não for encontrado.
 
+        # Formata o histórico do chat para incluir nas mensagens do prompt.
+        history_context = ""
+        for entry in chat_history:
+            history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
+
         # Cria um prompt para a segunda fase, onde o especialista selecionado fornece uma resposta detalhada.
         phase_two_prompt = (
             f"输出和响应必须仅翻译成巴西葡萄牙语。"
@@ -131,6 +136,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             f"确保以'markdown'格式呈现回答，并在每行中添加详细注释。"
             f"保持写作标准在10个段落，每个段落4句话，每句话用逗号分隔，"
             f"始终遵循亚里士多德的最佳教育实践。"
+            f"\n\nHistórico do chat:{history_context}"
         )
         phase_two_response = get_completion(phase_two_prompt)  # Obtém a resposta para o prompt da segunda fase.
 
@@ -141,7 +147,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     return expert_title, phase_two_response  # Retorna o título do especialista e a resposta da segunda fase.
 
 # Função para refinar uma resposta existente com base na análise e melhoria do conteúdo.
-def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, groq_api_key: str, references_file: str) -> str:
+def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, groq_api_key: str, references_file: str, chat_history: list) -> str:
     try:
         client = Groq(api_key=groq_api_key)  # Cria um cliente Groq usando a chave API fornecida.
 
@@ -161,6 +167,11 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             )
             return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
 
+        # Formata o histórico do chat para incluir nas mensagens do prompt.
+        history_context = ""
+        for entry in chat_history:
+            history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
+
         # Cria um prompt detalhado para refinar a resposta.
         refine_prompt = (
             f"输出和响应必须仅翻译成巴西葡萄牙语。"
@@ -171,11 +182,12 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"有必要以科学严谨的态度关注并探讨每个方面。"
             f"因此，我将概述需要考虑和调查的主要要素，提供基于证据的详细分析，"
             f"避免偏见，并根据需要引用参考文献：{phase_two_response}。"
-            f"最终目标是提供一个完整且令人满意的回答，符合最高的学术和专业标准，"
+            f"最终目标是提供一个完整且令人满意的回答，符合最高的学术 e profissional标准，"
             f"满足所提出问题的具体需求。"
             f"确保以'markdown'格式呈现回答，并在每行中添加详细注释。"
             f"保持写作标准在10个段落，每个段落4句话，每句话用逗号分隔，"
             f"始终遵循亚里士多德的最佳教育实践。"
+            f"\n\nHistórico do chat:{history_context}"
         )
 
         # Adiciona um prompt mais detalhado se não houver referências fornecidas.
@@ -195,7 +207,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         return ""  # Retorna uma string vazia se ocorrer um erro.
 
 # Função para avaliar a resposta com base em um agente gerador racional (RAG).
-def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, groq_api_key: str) -> str:
+def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, groq_api_key: str, chat_history: list) -> str:
     try:
         client = Groq(api_key=groq_api_key)  # Cria um cliente Groq usando a chave API fornecida.
 
@@ -214,6 +226,11 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                 stream=False  # Desabilita o streaming de respostas.
             )
             return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
+
+        # Formata o histórico do chat para incluir nas mensagens do prompt.
+        history_context = ""
+        for entry in chat_history:
+            history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         # Cria um prompt detalhado para avaliar a resposta usando o agente gerador racional (RAG).
         rag_prompt = (
@@ -242,6 +259,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
             f"遵循最高的卓越和学术、科学严格标准。"
             f"确保每段保持4句话，每句话用逗号分隔，始终遵循亚里士多德和苏格拉底的最佳教育实践。"
             f"回答必须使用巴西葡萄牙语。"
+            f"\n\nHistórico do chat:{history_context}"
         )
 
         rag_response = get_completion(rag_prompt)  # Obtém a resposta avaliada a partir do prompt detalhado.
@@ -335,24 +353,26 @@ with col2:
 
     container_saida = st.container()
 
+    chat_history = load_chat_history()[-memory_selection:]  # Carrega as últimas 'memory_selection' interações
+
     if fetch_clicked:
         if references_file is None:
             st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas. Saída sempre traduzido para o portugues brasileiro com tom profissional.")
-        st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, groq_api_key)
+        st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, groq_api_key, chat_history)
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
         save_chat_history(user_input, user_prompt, st.session_state.resposta_assistente)
 
     if refine_clicked:
         if st.session_state.resposta_assistente:
-            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, groq_api_key, references_file)
+            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, groq_api_key, references_file, chat_history)
             save_chat_history(user_input, user_prompt, st.session_state.resposta_refinada)
         else:
             st.warning("Por favor, busque uma resposta antes de refinar.")
 
     if evaluate_clicked:
         if st.session_state.resposta_assistente and st.session_state.descricao_especialista_ideal:
-            st.session_state.rag_resposta = evaluate_response_with_rag(user_input, user_prompt, st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, model_name, temperature, groq_api_key)
+            st.session_state.rag_resposta = evaluate_response_with_rag(user_input, user_prompt, st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, model_name, temperature, groq_api_key, chat_history)
             save_chat_history(user_input, user_prompt, st.session_state.rag_resposta)
         else:
             st.warning("Por favor, busque uma resposta e forneça uma descrição do especialista antes de avaliar com RAG.")
@@ -367,7 +387,6 @@ with col2:
 
     # Exibe o histórico do chat
     st.markdown("### Histórico do Chat")
-    chat_history = load_chat_history()[-memory_selection:]  # Carrega as últimas 'memory_selection' interações
     for entry in chat_history:
         st.write(f"**Entrada do Usuário:** {entry['user_input']}")
         st.write(f"**Prompt do Usuário:** {entry['user_prompt']}")
