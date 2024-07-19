@@ -9,6 +9,7 @@ st.set_page_config(layout="wide")
 
 # Define o caminho para o arquivo JSON que contém os Agentes.
 FILEPATH = "agents.json"
+CHAT_HISTORY_FILE = 'chat_history.json'
 
 # Define um dicionário que mapeia nomes de modelos para o número máximo de tokens que cada modelo suporta.
 MODEL_MAX_TOKENS = {
@@ -38,7 +39,7 @@ def get_max_tokens(model_name: str) -> int:
 
 # Define uma função para recarregar a página do Streamlit.
 def refresh_page():
-    st.rerun()  # Recarrega a aplicação Streamlit.
+    st.experimental_rerun()  # Recarrega a aplicação Streamlit.
 
 # Define uma função para salvar um novo especialista no arquivo JSON.
 def save_expert(expert_title: str, expert_description: dict):
@@ -270,7 +271,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
         return ""  # Retorna uma string vazia se ocorrer um erro.
 
 # Função para salvar o histórico de chat
-def save_chat_history(user_input, user_prompt, expert_response, chat_history_file='chat_history.json'):
+def save_chat_history(user_input, user_prompt, expert_response, chat_history_file=CHAT_HISTORY_FILE):
     chat_entry = {
         'user_input': user_input,
         'user_prompt': user_prompt,
@@ -287,12 +288,17 @@ def save_chat_history(user_input, user_prompt, expert_response, chat_history_fil
             json.dump([chat_entry], file, indent=4)
 
 # Função para carregar o histórico de chat
-def load_chat_history(chat_history_file='chat_history.json'):
+def load_chat_history(chat_history_file=CHAT_HISTORY_FILE):
     if os.path.exists(chat_history_file):
         with open(chat_history_file, 'r') as file:
             chat_history = json.load(file)
         return chat_history
     return []
+
+# Função para apagar o histórico de chat
+def clear_chat_history(chat_history_file=CHAT_HISTORY_FILE):
+    if os.path.exists(chat_history_file):
+        os.remove(chat_history_file)
 
 # Carrega as opções de Agentes a partir do arquivo JSON.
 agent_options = load_agent_options()
@@ -394,8 +400,9 @@ with col2:
         st.markdown("---")
 
 if refresh_clicked:
-    st.session_state.clear()
-    st.experimental_rerun()
+    clear_chat_history()  # Limpa o arquivo de histórico de chat
+    st.session_state.clear()  # Reseta o estado do Streamlit
+    st.experimental_rerun()  # Recarrega a aplicação Streamlit
 
 # Sidebar com manual de uso
 st.sidebar.image("logo.png", width=200)
