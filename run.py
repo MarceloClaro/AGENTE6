@@ -3,8 +3,6 @@ import streamlit as st
 import os
 from typing import Tuple, List
 from groq import Groq
-from crewai import Agent, Task, Crew, Process
-from crewai_tools import SerperDevTool
 
 # Configure the Streamlit page layout
 st.set_page_config(layout="wide")
@@ -49,9 +47,14 @@ def save_expert(expert_title: str, expert_description: str):
 if 'history' not in st.session_state:
     st.session_state.history = []
 
+if 'history_limit' not in st.session_state:
+    st.session_state.history_limit = 5
+
 # Function to add interaction to history
 def add_to_history(user_input: str, assistant_response: str):
     st.session_state.history.append({"user_input": user_input, "assistant_response": assistant_response})
+    if len(st.session_state.history) > st.session_state.history_limit:
+        st.session_state.history.pop(0)
 
 # Function to fetch the full history
 def get_full_history() -> str:
@@ -352,6 +355,9 @@ with col1:
     groq_api_key = st.text_input("Chave da API Groq: Você pode usar esse como teste - ... ", key="groq_api_key")
     max_tokens = get_max_tokens(model_name)
     st.write(f"Número Máximo de Tokens para o modelo selecionado: {max_tokens}")
+    
+    history_limit = st.selectbox("Número de Interações a Armazenar", options=[5, 10, 30, 60], index=0, key="history_limit")
+    st.session_state.history_limit = history_limit
 
     fetch_clicked = st.button("Buscar Resposta")
     refine_clicked = st.button("Refinar Resposta")
