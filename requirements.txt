@@ -3,4 +3,4 @@ groq==0.5.0
 toml==0.10.2
 pydub
 crewai
-crewai[tools]'
+crewai'[tools]'
