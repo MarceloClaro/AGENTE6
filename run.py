@@ -20,6 +20,11 @@ MODEL_MAX_TOKENS = {
     'gemma-7b-it': 8192,
 }
 
+# API keys
+API_KEY_FETCH = "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"
+API_KEY_REFINE = "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"
+API_KEY_EVALUATE = "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"
+
 # Define uma função para carregar as opções de Agentes a partir do arquivo JSON.
 def load_agent_options() -> list:
     agent_options = ['Escolher um especialista...']  # Inicia a lista de opções com uma opção padrão.
@@ -59,7 +64,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     expert_title = ""  # Inicializa a variável para armazenar o título do especialista.
 
     try:
-        client = Groq(api_key=groq_api_key)  # Cria um cliente Groq usando a chave API fornecida.
+        client = Groq(api_key=API_KEY_FETCH)  # Usa a chave API específica para buscar respostas.
 
         # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
@@ -160,7 +165,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 # Função para refinar uma resposta existente com base na análise e melhoria do conteúdo.
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, groq_api_key: str, references_file: str, chat_history: list) -> str:
     try:
-        client = Groq(api_key=groq_api_key)  # Cria um cliente Groq usando a chave API fornecida.
+        client = Groq(api_key=API_KEY_REFINE)  # Usa a chave API específica para refinar respostas.
 
         # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
@@ -229,7 +234,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 # Função para avaliar a resposta com base em um agente gerador racional (RAG).
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, groq_api_key: str, chat_history: list) -> str:
     try:
-        client = Groq(api_key=groq_api_key)  # Cria um cliente Groq usando a chave API fornecida.
+        client = Groq(api_key=API_KEY_EVALUATE)  # Usa a chave API específica para avaliar respostas.
 
         # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
@@ -459,3 +464,4 @@ with st.sidebar.expander("Insights do Código"):
 
     Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas. No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais.
     """)
+
