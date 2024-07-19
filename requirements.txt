@@ -33,3 +33,4 @@ dataclasses-json
 markdown-it-py
 jsonschema-specifications
 sqlite3
+pysqlite3-binary
