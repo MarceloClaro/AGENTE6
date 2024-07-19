@@ -4,6 +4,7 @@ import os  # Importa o módulo os para interagir com o sistema operacional, como
 from typing import Tuple  # Importa Tuple da biblioteca typing para fornecer tipos de dados mais precisos para funções.
 from groq import Groq  # Importa a biblioteca Groq, possivelmente para uma função não especificada neste código.
 import time  # Importa o módulo time para adicionar atrasos entre as tentativas de solicitação da API
+from crewai_tools.tools.scrape_website_tool.scrape_website_tool import ScrapeWebsiteTool
 
 # Configura o layout da página Streamlit para ser "wide", ocupando toda a largura disponível.
 st.set_page_config(layout="wide")
@@ -58,41 +59,47 @@ def save_expert(expert_title: str, expert_description: dict):
         json.dump(agents, file, indent=4)  # Grava a lista de Agentes de volta no arquivo com indentação para melhor legibilidade.
         file.truncate()  # Remove qualquer conteúdo restante do arquivo após a nova escrita para evitar dados obsoletos.
 
-# Função para buscar uma resposta do assistente baseado no modelo Groq, incluindo o histórico.
-def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list) -> Tuple[str, str]:
-    phase_two_response = ""  # Inicializa a variável para armazenar a resposta da segunda fase.
-    expert_title = ""  # Inicializa a variável para armazenar o título do especialista.
+# Função para criar ferramentas de raspagem
+def create_scraping_tools(url_list: list) -> list:
+    scraping_tools = []
+    for url in url_list:
+        tool = ScrapeWebsiteTool(website_url=url)
+        scraping_tools.append(tool)
+    return scraping_tools
+
+# Função para buscar uma resposta do assistente baseado no modelo Groq, incluindo o histórico e ferramentas de raspagem.
+def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, scraping_tools: list) -> Tuple[str, str]:
+    phase_two_response = ""
+    expert_title = ""
 
     try:
-        client = Groq(api_key=API_KEY_FETCH)  # Usa a chave API específica para buscar respostas.
+        client = Groq(api_key=API_KEY_FETCH)
 
-        # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
-            while True:  # Loop para tentar novamente em caso de erro de limite de taxa
+            while True:
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},  # Mensagem do sistema definindo o comportamento do assistente.
-                            {"role": "user", "content": prompt},  # Mensagem do usuário contendo o prompt.
+                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "user", "content": prompt},
                         ],
-                        model=model_name,  # Nome do modelo a ser usado.
-                        temperature=temperature,  # Temperatura para controlar a aleatoriedade das respostas.
-                        max_tokens=get_max_tokens(model_name),  # Número máximo de tokens permitido para o modelo.
-                        top_p=1,  # Parâmetro para amostragem nuclear.
-                        stop=None,  # Sem tokens de parada específicos.
-                        stream=False  # Desabilita o streaming de respostas.
+                        model=model_name,
+                        temperature=temperature,
+                        max_tokens=get_max_tokens(model_name),
+                        top_p=1,
+                        stop=None,
+                        stream=False
                     )
-                    return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
+                    return completion.choices[0].message.content
                 except Exception as e:
                     error_message = str(e)
                     if 'rate_limit_exceeded' in error_message:
                         wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
-                        time.sleep(wait_time)  # Espera pelo tempo sugerido antes de tentar novamente
+                        time.sleep(wait_time)
                     else:
-                        raise e  # Se o erro não for de limite de taxa, relança a exceção
+                        raise e
 
         if agent_selection == "Escolher um especialista...":
-            # Se nenhum especialista específico for selecionado, cria um prompt para determinar o título e descrição do especialista.
             phase_one_prompt = (
                 f"假设自己是一位具有高度科学严谨性的高级提示工程专家。"
                 f"请以‘markdown’格式呈现Python代码及其相应的库，并在每行中添加详细的教育性注释。"
@@ -115,29 +122,25 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 f"准确度为10.0，符合最高的专业、科学和学术标准，每一行都有详细的注释。"
             )
 
-            phase_one_response = get_completion(phase_one_prompt)  # Obtém a resposta para o prompt da fase um.
-            first_period_index = phase_one_response.find(".")  # Encontra o índice do primeiro ponto na resposta.
-            expert_title = phase_one_response[:first_period_index].strip()  # Extrai o título do especialista até o primeiro ponto.
-            expert_description = phase_one_response[first_period_index + 1:].strip()  # Extrai a descrição do especialista após o primeiro ponto.
-            save_expert(expert_title, expert_description)  # Salva o novo especialista no arquivo JSON.
+            phase_one_response = get_completion(phase_one_prompt)
+            first_period_index = phase_one_response.find(".")
+            expert_title = phase_one_response[:first_period_index].strip()
+            expert_description = phase_one_response[first_period_index + 1:].strip()
+            save_expert(expert_title, expert_description)
         else:
-            # Se um especialista específico for selecionado, carrega os dados do especialista do arquivo JSON.
-            with open(FILEPATH, 'r') as file:  # Abre o arquivo JSON para leitura.
-                agents = json.load(file)  # Carrega os dados dos Agentes do arquivo JSON.
-                # Encontra o agente selecionado na lista de Agentes.
+            with open(FILEPATH, 'r') as file:
+                agents = json.load(file)
                 agent_found = next((agent for agent in agents if agent["agente"] == agent_selection), None)
                 if agent_found:
-                    expert_title = agent_found["agente"]  # Obtém o título do especialista.
-                    expert_description = agent_found["descricao"]  # Obtém a descrição do especialista.
+                    expert_title = agent_found["agente"]
+                    expert_description = agent_found["descricao"]
                 else:
-                    raise ValueError("Especialista selecionado não encontrado no arquivo.")  # Lança um erro se o especialista não for encontrado.
+                    raise ValueError("Especialista selecionado não encontrado no arquivo.")
 
-        # Formata o histórico do chat para incluir nas mensagens do prompt.
         history_context = ""
         for entry in chat_history:
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
-        # Cria um prompt para a segunda fase, onde o especialista selecionado fornece uma resposta detalhada.
         phase_two_prompt = (
             f"输出和响应必须仅翻译成巴西葡萄牙语。"
             f"扮演{expert_title}的角色，这是一位在其领域内广受认可和尊敬的专家，"
@@ -154,50 +157,48 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             f"始终遵循亚里士多德的最佳教育实践。"
             f"\n\nHistórico do chat:{history_context}"
         )
-        phase_two_response = get_completion(phase_two_prompt)  # Obtém a resposta para o prompt da segunda fase.
 
-    except Exception as e:  # Captura qualquer exceção que ocorra durante o processo.
-        st.error(f"Ocorreu um erro: {e}")  # Exibe uma mensagem de erro no Streamlit.
-        return "", ""  # Retorna tuplas vazias se ocorrer um erro.
+        phase_two_response = get_completion(phase_two_prompt)
 
-    return expert_title, phase_two_response  # Retorna o título do especialista e a resposta da segunda fase.
+    except Exception as e:
+        st.error(f"Ocorreu um erro: {e}")
+        return "", ""
+
+    return expert_title, phase_two_response
 
 # Função para refinar uma resposta existente com base na análise e melhoria do conteúdo.
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list) -> str:
     try:
-        client = Groq(api_key=API_KEY_REFINE)  # Usa a chave API específica para refinar respostas.
+        client = Groq(api_key=API_KEY_REFINE)
 
-        # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
-            while True:  # Loop para tentar novamente em caso de erro de limite de taxa
+            while True:
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},  # Mensagem do sistema definindo o comportamento do assistente.
-                            {"role": "user", "content": prompt},  # Mensagem do usuário contendo o prompt.
+                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "user", "content": prompt},
                         ],
-                        model=model_name,  # Nome do modelo a ser usado.
-                        temperature=temperature,  # Temperatura para controlar a aleatoriedade das respostas.
-                        max_tokens=get_max_tokens(model_name),  # Número máximo de tokens permitido para o modelo.
-                        top_p=1,  # Parâmetro para amostragem nuclear.
-                        stop=None,  # Sem tokens de parada específicos.
-                        stream=False  # Desabilita o streaming de respostas.
+                        model=model_name,
+                        temperature=temperature,
+                        max_tokens=get_max_tokens(model_name),
+                        top_p=1,
+                        stop=None,
+                        stream=False
                     )
-                    return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
+                    return completion.choices[0].message.content
                 except Exception as e:
                     error_message = str(e)
                     if 'rate_limit_exceeded' in error_message:
                         wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
-                        time.sleep(wait_time)  # Espera pelo tempo sugerido antes de tentar novamente
+                        time.sleep(wait_time)
                     else:
-                        raise e  # Se o erro não for de limite de taxa, relança a exceção
+                        raise e
 
-        # Formata o histórico do chat para incluir nas mensagens do prompt.
         history_context = ""
         for entry in chat_history:
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
-        # Cria um prompt detalhado para refinar a resposta.
         refine_prompt = (
             f"输出和响应必须仅翻译成巴西葡萄牙语。"
             f"扮演{expert_title}的角色，这是一位在其领域内广受认可和尊敬的专家，"
@@ -211,62 +212,58 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"满足所提出问题的具体需求。"
             f"确保以'markdown'格式呈现回答，并在每行中添加详细注释。"
             f"保持写作 padrão em 10 parágrafos，每个 parágrafo contendo 4 frases, "
-            f"e sempre seguindo as melhores práticas educacionais de Aristóteles."
+            f"e sempre seguindo as melhores práticas educacionais de Aristóteles。"
             f"\n\nHistórico do chat:{history_context}"
         )
 
-        # Adiciona um prompt mais detalhado se não houver referências fornecidas.
         if not references_file:
             refine_prompt += (
                 f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, "
                 f"mesmo sem o uso de fontes externas. "
                 f"Mantenha um padrão de escrita consistente, com 10 parágrafos, cada parágrafo contendo 4 frases, e cite de acordo com as normas ABNT. "
-                f"Utilize sempre um tom profissional e traduza tudo para o português do Brasil."
+                f"Utilize sempre um tom profissional e traduza tudo para o português do Brasil。"
             )
 
-        refined_response = get_completion(refine_prompt)  # Obtém a resposta refinada a partir do prompt detalhado.
-        return refined_response  # Retorna a resposta refinada.
+        refined_response = get_completion(refine_prompt)
+        return refined_response
 
-    except Exception as e:  # Captura qualquer exceção que ocorra durante o processo de refinamento.
-        st.error(f"Ocorreu um erro durante o refinamento: {e}")  # Exibe uma mensagem de erro no Streamlit.
-        return ""  # Retorna uma string vazia se ocorrer um erro.
+    except Exception as e:
+        st.error(f"Ocorreu um erro durante o refinamento: {e}")
+        return ""
 
 # Função para avaliar a resposta com base em um agente gerador racional (RAG).
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, groq_api_key: str, chat_history: list) -> str:
     try:
-        client = Groq(api_key=API_KEY_EVALUATE)  # Usa a chave API específica para avaliar respostas.
+        client = Groq(api_key=API_KEY_EVALUATE)
 
-        # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
-            while True:  # Loop para tentar novamente em caso de erro de limite de taxa
+            while True:
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},  # Mensagem do sistema definindo o comportamento do assistente.
-                            {"role": "user", "content": prompt},  # Mensagem do usuário contendo o prompt.
+                            {"role": "system", "content": "Você é um assistente útil。"},
+                            {"role": "user", "content": prompt},
                         ],
-                        model=model_name,  # Nome do modelo a ser usado.
-                        temperature=temperature,  # Temperatura para controlar a aleatoriedade das respostas.
-                        max_tokens=get_max_tokens(model_name),  # Número máximo de tokens permitido para o modelo.
-                        top_p=1,  # Parâmetro para amostragem nuclear.
-                        stop=None,  # Sem tokens de parada específicos.
-                        stream=False  # Desabilita o streaming de respostas.
+                        model=model_name,
+                        temperature=temperature,
+                        max_tokens=get_max_tokens(model_name),
+                        top_p=1,
+                        stop=None,
+                        stream=False
                     )
-                    return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
+                    return completion.choices[0].message.content
                 except Exception as e:
                     error_message = str(e)
                     if 'rate_limit_exceeded' in error_message:
                         wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
-                        time.sleep(wait_time)  # Espera pelo tempo sugerido antes de tentar novamente
+                        time.sleep(wait_time)
                     else:
-                        raise e  # Se o erro não for de limite de taxa, relança a exceção
+                        raise e
 
-        # Formata o histórico do chat para incluir nas mensagens do prompt.
         history_context = ""
         for entry in chat_history:
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
-        # Cria um prompt detalhado para avaliar a resposta usando o agente gerador racional (RAG).
         rag_prompt = (
             f"输出和响应必须仅翻译成巴西葡萄牙语。"
             f"扮演一个理性生成代理（RAG）的角色，站在人工智能和理性评估的前沿，"
@@ -296,12 +293,12 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
             f"\n\nHistórico do chat:{history_context}"
         )
 
-        rag_response = get_completion(rag_prompt)  # Obtém a resposta avaliada a partir do prompt detalhado.
-        return rag_response  # Retorna a resposta avaliada.
+        rag_response = get_completion(rag_prompt)
+        return rag_response
 
-    except Exception as e:  # Captura qualquer exceção que ocorra durante o processo de avaliação com RAG.
-        st.error(f"Ocorreu um erro durante a avaliação com RAG: {e}")  # Exibe uma mensagem de erro no Streamlit.
-        return ""  # Retorna uma string vazia se ocorrer um erro.
+    except Exception as e:
+        st.error(f"Ocorreu um erro durante a avaliação com RAG: {e}")
+        return ""
 
 # Função para salvar o histórico de chat
 def save_chat_history(user_input, user_prompt, expert_response, chat_history_file=CHAT_HISTORY_FILE):
@@ -337,28 +334,28 @@ def clear_chat_history(chat_history_file=CHAT_HISTORY_FILE):
 agent_options = load_agent_options()
 
 # Layout da página
-st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo." - Alan Kay', use_column_width='always', output_format='auto')
+st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo。" - Alan Kay', use_column_width='always', output_format='auto')
 st.markdown("<h1 style='text-align: center;'>Agentes Alan Kay</h1>", unsafe_allow_html=True)
 
-st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão.</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão。</h2>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center;'>Descubra como nossa plataforma pode revolucionar a educação.</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Descubra como nossa plataforma pode revolucionar a educação。</h2>", unsafe_allow_html=True)
 
 # Exibe informações sobre os Agentes Alan Kay
-with st.expander("Clique para saber mais sobre os Agentes Alan Kay."):
-    st.write("1. **Conecte-se instantaneamente com especialistas:** Imagine ter acesso direto a especialistas em diversas áreas do conhecimento, prontos para responder às suas dúvidas e orientar seus estudos e pesquisas.")
-    st.write("2. **Aprendizado personalizado e interativo:** Receba respostas detalhadas e educativas, adaptadas às suas necessidades específicas, tornando o aprendizado mais eficaz e envolvente.")
-    st.write("3. **Suporte acadêmico abrangente:** Desde aulas particulares até orientações para projetos de pesquisa, nossa plataforma oferece um suporte completo para alunos, professores e pesquisadores.")
-    st.write("4. **Avaliação e aprimoramento contínuo:** Utilizando o Rational Agent Generator (RAG), garantimos que as respostas dos especialistas sejam sempre as melhores, mantendo um padrão de excelência em todas as interações.")
-    st.write("5. **Desenvolvimento profissional e acadêmico:** Professores podem encontrar recursos e orientações para melhorar suas práticas de ensino, enquanto pesquisadores podem obter insights valiosos para suas investigações.")
-    st.write("6. **Inovação e tecnologia educacional:** Nossa plataforma incorpora as mais recentes tecnologias para proporcionar uma experiência educacional moderna e eficiente.")
+with st.expander("Clique para saber mais sobre os Agentes Alan Kay。"):
+    st.write("1. **Conecte-se instantaneamente com especialistas:** Imagine ter acesso direto a especialistas em diversas áreas do conhecimento, prontos para responder às suas dúvidas e orientar seus estudos e pesquisas。")
+    st.write("2. **Aprendizado personalizado e interativo:** Receba respostas detalhadas e educativas, adaptadas às suas necessidades específicas, tornando o aprendizado mais eficaz e envolvente。")
+    st.write("3. **Suporte acadêmico abrangente:** Desde aulas particulares até orientações para projetos de pesquisa, nossa plataforma oferece um suporte completo para alunos, professores e pesquisadores。")
+    st.write("4. **Avaliação e aprimoramento contínuo:** Utilizando o Rational Agent Generator (RAG), garantimos que as respostas dos especialistas sejam sempre as melhores, mantendo um padrão de excelência em todas as interações。")
+    st.write("5. **Desenvolvimento profissional e acadêmico:** Professores podem encontrar recursos e orientações para melhorar suas práticas de ensino, enquanto pesquisadores podem obter insights valiosos para suas investigações。")
+    st.write("6. **Inovação e tecnologia educacional:** Nossa plataforma incorpora as mais recentes tecnologias para proporcionar uma experiência educacional moderna e eficiente。")
     st.image("fluxograma agente 4.png")
 
 # Seleção de memória do chat
 memory_selection = st.selectbox("Selecione a quantidade de interações para lembrar:", options=[5, 10, 15, 25, 50, 100])
 
 # Caixa de entrada para solicitação do usuário
-st.write("Digite sua solicitação para que ela seja respondida pelo especialista ideal.")
+st.write("Digite sua solicitação para que ela seja respondida pelo especialista ideal。")
 col1, col2 = st.columns(2)
 
 with col1:
@@ -375,6 +372,8 @@ with col1:
     refine_clicked = st.button("Refinar Resposta")
     evaluate_clicked = st.button("Avaliar Resposta com RAG")
     refresh_clicked = st.button("Apagar")
+
+    url_list = st.text_area("URLs dos sites para raspagem (separados por vírgula):", height=200, key="url_lista")
 
     references_file = st.file_uploader("Upload do arquivo JSON com referências (opcional)", type="json", key="arquivo_referencias")
 
@@ -395,9 +394,10 @@ with col2:
     chat_history = load_chat_history()[-memory_selection:]  # Carrega as últimas 'memory_selection' interações
 
     if fetch_clicked:
+        scraping_tools = create_scraping_tools(url_list.split(','))
         if references_file is None:
             st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas. Saída sempre traduzido para o portugues brasileiro com tom profissional.")
-        st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history)
+        st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, scraping_tools)
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
         save_chat_history(user_input, user_prompt, st.session_state.resposta_assistente)
@@ -407,14 +407,14 @@ with col2:
             st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_file, chat_history)
             save_chat_history(user_input, user_prompt, st.session_state.resposta_refinada)
         else:
-            st.warning("Por favor, busque uma resposta antes de refinar.")
+            st.warning("Por favor, busque uma resposta antes de refinar。")
 
     if evaluate_clicked:
         if st.session_state.resposta_assistente and st.session_state.descricao_especialista_ideal:
             st.session_state.rag_resposta = evaluate_response_with_rag(user_input, user_prompt, st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, model_name, temperature, groq_api_key, chat_history)
             save_chat_history(user_input, user_prompt, st.session_state.rag_resposta)
         else:
-            st.warning("Por favor, busque uma resposta e forneça uma descrição do especialista antes de avaliar com RAG.")
+            st.warning("Por favor, busque uma resposta e forneça uma descrição do especialista antes de avaliar com RAG。")
 
     with container_saida:
         st.write(f"**#Análise do Especialista:**\n{st.session_state.descricao_especialista_ideal}")
@@ -441,26 +441,26 @@ if refresh_clicked:
 st.sidebar.image("logo.png", width=200)
 with st.sidebar.expander("Insights do Código"):
     st.markdown("""
-    O código do Agentes Alan Kay é um exemplo de uma aplicação de chat baseada em modelos de linguagem (LLMs) utilizando a biblioteca Streamlit e a API Groq. Aqui, vamos analisar detalhadamente o código e discutir suas inovações, pontos positivos e limitações.
+    O código do Agentes Alan Kay é um exemplo de uma aplicação de chat baseada em modelos de linguagem (LLMs) utilizando a biblioteca Streamlit e a API Groq. Aqui, vamos analisar detalhadamente o código e discutir suas inovações, pontos positivos e limitações。
 
     **Inovações:**
-    - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA, para gerar respostas mais precisas e personalizadas.
-    - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de linguagem natural de alta performance para gerar respostas precisas.
-    - Refinamento de respostas: O código permite que o usuário refine as respostas do modelo de linguagem, tornando-as mais precisas e relevantes para a consulta.
-    - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do modelo de linguagem.
+    - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA, para gerar respostas mais precisas e personalizadas。
+    - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de linguagem natural de alta performance para gerar respostas precisas。
+    - Refinamento de respostas: O código permite que o usuário refine as respostas do modelo de linguagem, tornando-as mais precisas e relevantes para a consulta。
+    - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do modelo de linguagem。
 
     **Pontos positivos:**
-    - Personalização: O aplicativo permite que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas de acordo com suas necessidades.
-    - Precisão: A integração com a API Groq e o refinamento de respostas garantem que as respostas sejam precisas e relevantes para a consulta.
-    - Flexibilidade: O código é flexível o suficiente para permitir que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas.
+    - Personalização: O aplicativo permite que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas de acordo com suas necessidades。
+    - Precisão: A integração com a API Groq e o refinamento de respostas garantem que as respostas sejam precisas e relevantes para a consulta。
+    - Flexibilidade: O código é flexível o suficiente para permitir que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas。
 
     **Limitações:**
-    - Dificuldade de uso: O aplicativo pode ser difícil de usar para os usuários que não têm experiência com modelos de linguagem ou API.
-    - Limitações de token: O código tem limitações em relação ao número de tokens que podem ser processados pelo modelo de linguagem.
-    - Necessidade de treinamento adicional: O modelo de linguagem pode precisar de treinamento adicional para lidar com consultas mais complexas ou específicas.
+    - Dificuldade de uso: O aplicativo pode ser difícil de usar para os usuários que não têm experiência com modelos de linguagem ou API。
+    - Limitações de token: O código tem limitações em relação ao número de tokens que podem ser processados pelo modelo de linguagem。
+    - Necessidade de treinamento adicional: O modelo de linguagem pode precisar de treinamento adicional para lidar com consultas mais complexas ou específicas。
 
     **Importância de ter colocado instruções em chinês:**
-    A linguagem chinesa tem uma densidade de informação mais alta do que muitas outras línguas, o que significa que os modelos de linguagem precisam processar menos tokens para entender o contexto e gerar respostas precisas. Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens. Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz.
+    A linguagem chinesa tem uma densidade de informação mais alta do que muitas outras línguas, o que significa que os modelos de linguagem precisam processar menos tokens para entender o contexto e gerar respostas precisas。 Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens。 Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz。
 
-    Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas. No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais.
+    Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas。 No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais。
     """)
