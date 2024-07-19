@@ -1,5 +1,5 @@
 streamlit
-toml==0.10.2
+toml
 pydub
 os
 typing
