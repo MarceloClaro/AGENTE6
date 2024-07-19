@@ -3,6 +3,8 @@ import streamlit as st
 import os
 from typing import Tuple, List
 from groq import Groq
+from crewai import Agent, Task, Crew, Process
+from crewai_tools import SerperDevTool
 
 # Configure the Streamlit page layout
 st.set_page_config(layout="wide")
@@ -191,6 +193,19 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
         st.error(f"Ocorreu um erro durante a avaliação com RAG: {e}")
         return ""
 
+# Integration with Crewai
+def integrate_crewai(groq_response: str, crewai_api_key: str) -> str:
+    try:
+        crew = Crew(api_key=crewai_api_key)
+        task = Task(description=groq_response)
+        process = Process(tasks=[task])
+        agent = Agent(process=process)
+        result = agent.execute()
+        return result
+    except Exception as e:
+        st.error(f"Ocorreu um erro durante a integração com o Crewai: {e}")
+        return ""
+
 # Load agent options
 agent_options = load_agent_options()
 
@@ -356,12 +371,15 @@ with col1:
     max_tokens = get_max_tokens(model_name)
     st.write(f"Número Máximo de Tokens para o modelo selecionado: {max_tokens}")
     
+    crewai_api_key = st.text_input("Chave da API Crewai", key="crewai_api_key")
+    
     history_limit = st.selectbox("Número de Interações a Armazenar", options=[5, 10, 30, 60], index=0, key="history_limit")
     st.session_state.history_limit = history_limit
 
     fetch_clicked = st.button("Buscar Resposta")
     refine_clicked = st.button("Refinar Resposta")
     evaluate_clicked = st.button("Avaliar Resposta com RAG")
+    integrate_clicked = st.button("Integrar com Crewai")
     refresh_clicked = st.button("Apagar Histórico")
 
     references_file = st.file_uploader("Upload do arquivo JSON com referências (opcional)", type="json", key="arquivo_referencias")
@@ -377,6 +395,8 @@ with col2:
         st.session_state.resposta_original = ""
     if 'rag_resposta' not in st.session_state:
         st.session_state.rag_resposta = ""
+    if 'crewai_resposta' not in st.session_state:
+        st.session_state.crewai_resposta = ""
 
     container_saida = st.container()
 
@@ -399,6 +419,12 @@ with col2:
         else:
             st.warning("Por favor, busque uma resposta e forneça uma descrição do especialista antes de avaliar com RAG.")
 
+    if integrate_clicked:
+        if st.session_state.resposta_assistente:
+            st.session_state.crewai_resposta = integrate_crewai(st.session_state.resposta_assistente, crewai_api_key)
+        else:
+            st.warning("Por favor, busque uma resposta antes de integrar com Crewai.")
+
     with container_saida:
         st.write(f"**#Análise do Especialista:**\n{st.session_state.descricao_especialista_ideal}")
         st.write(f"\n**#Resposta do Especialista:**\n{st.session_state.resposta_original}")
@@ -406,6 +432,8 @@ with col2:
             st.write(f"\n**#Resposta Refinada:**\n{st.session_state.resposta_refinada}")
         if st.session_state.rag_resposta:
             st.write(f"\n**#Avaliação com RAG:**\n{st.session_state.rag_resposta}")
+        if st.session_state.crewai_resposta:
+            st.write(f"\n**#Integração com Crewai:**\n{st.session_state.crewai_resposta}")
 
 if refresh_clicked:
     st.session_state.history.clear()
