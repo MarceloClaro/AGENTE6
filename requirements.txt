@@ -9,7 +9,7 @@ langchain-openai==0.1.17
 PyPDF2==3.0.1
 langchain_community==0.2.7
 requests==2.32.3
-numpy>=1.23.2,<2.0.0
+numpy<2.0.0,>=1.23.2
 protobuf==5.27.2
 pydantic==2.8.2
 pydantic-core==2.20.1
@@ -27,7 +27,7 @@ typing-extensions==4.12.2
 importlib-metadata==8.0.0
 importlib-resources==6.4.0
 chroma-hnswlib==0.7.5
-chromadb==0.5.4
+chromadb>=0.4.24,<0.5.0
 dataclasses-json==0.6.7
 markdown-it-py==3.0.0
 jsonschema-specifications==2023.12.1
