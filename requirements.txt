@@ -32,3 +32,4 @@ chromadb
 dataclasses-json
 markdown-it-py
 jsonschema-specifications
+sqlite3
