@@ -3,6 +3,7 @@ import streamlit as st  # Importa o Streamlit para criar aplicativos web interat
 import os  # Importa o módulo os para interagir com o sistema operacional, como verificar a existência de arquivos.
 from typing import Tuple  # Importa Tuple da biblioteca typing para fornecer tipos de dados mais precisos para funções.
 from groq import Groq  # Importa a biblioteca Groq, possivelmente para uma função não especificada neste código.
+import time  # Importa o módulo time para adicionar atrasos entre as tentativas de solicitação da API
 
 # Configura o layout da página Streamlit para ser "wide", ocupando toda a largura disponível.
 st.set_page_config(layout="wide")
@@ -62,19 +63,28 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
         # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
-            completion = client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": "Você é um assistente útil."},  # Mensagem do sistema definindo o comportamento do assistente.
-                    {"role": "user", "content": prompt},  # Mensagem do usuário contendo o prompt.
-                ],
-                model=model_name,  # Nome do modelo a ser usado.
-                temperature=temperature,  # Temperatura para controlar a aleatoriedade das respostas.
-                max_tokens=get_max_tokens(model_name),  # Número máximo de tokens permitido para o modelo.
-                top_p=1,  # Parâmetro para amostragem nuclear.
-                stop=None,  # Sem tokens de parada específicos.
-                stream=False  # Desabilita o streaming de respostas.
-            )
-            return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
+            while True:  # Loop para tentar novamente em caso de erro de limite de taxa
+                try:
+                    completion = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": "Você é um assistente útil."},  # Mensagem do sistema definindo o comportamento do assistente.
+                            {"role": "user", "content": prompt},  # Mensagem do usuário contendo o prompt.
+                        ],
+                        model=model_name,  # Nome do modelo a ser usado.
+                        temperature=temperature,  # Temperatura para controlar a aleatoriedade das respostas.
+                        max_tokens=get_max_tokens(model_name),  # Número máximo de tokens permitido para o modelo.
+                        top_p=1,  # Parâmetro para amostragem nuclear.
+                        stop=None,  # Sem tokens de parada específicos.
+                        stream=False  # Desabilita o streaming de respostas.
+                    )
+                    return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
+                except Exception as e:
+                    error_message = str(e)
+                    if 'rate_limit_exceeded' in error_message:
+                        wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
+                        time.sleep(wait_time)  # Espera pelo tempo sugerido antes de tentar novamente
+                    else:
+                        raise e  # Se o erro não for de limite de taxa, relança a exceção
 
         if agent_selection == "Escolher um especialista...":
             # Se nenhum especialista específico for selecionado, cria um prompt para determinar o título e descrição do especialista.
@@ -132,7 +142,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             f"有必要以科学严谨的态度关注并探讨每个方面。"
             f"因此，我将概述需要考虑和调查的主要要素，提供基于证据的详细分析，"
             f"避免偏见，并根据需要引用参考文献：{user_prompt}。"
-            f"最终目标是提供一个完整且令人满意的回答，符合最高的学术和专业标准，"
+            f"最终目标是提供一个完整且令人满意的回答，符合最高的学术和 profissional标准，"
             f"满足所提出问题的具体需求。"
             f"确保以'markdown'格式呈现回答，并在每行中添加详细注释。"
             f"保持写作标准在10个段落，每个段落4句话，每句话用逗号分隔，"
@@ -154,19 +164,28 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 
         # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
-            completion = client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": "Você é um assistente útil."},  # Mensagem do sistema definindo o comportamento do assistente.
-                    {"role": "user", "content": prompt},  # Mensagem do usuário contendo o prompt.
-                ],
-                model=model_name,  # Nome do modelo a ser usado.
-                temperature=temperature,  # Temperatura para controlar a aleatoriedade das respostas.
-                max_tokens=get_max_tokens(model_name),  # Número máximo de tokens permitido para o modelo.
-                top_p=1,  # Parâmetro para amostragem nuclear.
-                stop=None,  # Sem tokens de parada específicos.
-                stream=False  # Desabilita o streaming de respostas.
-            )
-            return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
+            while True:  # Loop para tentar novamente em caso de erro de limite de taxa
+                try:
+                    completion = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": "Você é um assistente útil."},  # Mensagem do sistema definindo o comportamento do assistente.
+                            {"role": "user", "content": prompt},  # Mensagem do usuário contendo o prompt.
+                        ],
+                        model=model_name,  # Nome do modelo a ser usado.
+                        temperature=temperature,  # Temperatura para controlar a aleatoriedade das respostas.
+                        max_tokens=get_max_tokens(model_name),  # Número máximo de tokens permitido para o modelo.
+                        top_p=1,  # Parâmetro para amostragem nuclear.
+                        stop=None,  # Sem tokens de parada específicos.
+                        stream=False  # Desabilita o streaming de respostas.
+                    )
+                    return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
+                except Exception as e:
+                    error_message = str(e)
+                    if 'rate_limit_exceeded' in error_message:
+                        wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
+                        time.sleep(wait_time)  # Espera pelo tempo sugerido antes de tentar novamente
+                    else:
+                        raise e  # Se o erro não for de limite de taxa, relança a exceção
 
         # Formata o histórico do chat para incluir nas mensagens do prompt.
         history_context = ""
@@ -214,19 +233,28 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
 
         # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
-            completion = client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": "Você é um assistente útil."},  # Mensagem do sistema definindo o comportamento do assistente.
-                    {"role": "user", "content": prompt},  # Mensagem do usuário contendo o prompt.
-                ],
-                model=model_name,  # Nome do modelo a ser usado.
-                temperature=temperature,  # Temperatura para controlar a aleatoriedade das respostas.
-                max_tokens=get_max_tokens(model_name),  # Número máximo de tokens permitido para o modelo.
-                top_p=1,  # Parâmetro para amostragem nuclear.
-                stop=None,  # Sem tokens de parada específicos.
-                stream=False  # Desabilita o streaming de respostas.
-            )
-            return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
+            while True:  # Loop para tentar novamente em caso de erro de limite de taxa
+                try:
+                    completion = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": "Você é um assistente útil."},  # Mensagem do sistema definindo o comportamento do assistente.
+                            {"role": "user", "content": prompt},  # Mensagem do usuário contendo o prompt.
+                        ],
+                        model=model_name,  # Nome do modelo a ser usado.
+                        temperature=temperature,  # Temperatura para controlar a aleatoriedade das respostas.
+                        max_tokens=get_max_tokens(model_name),  # Número máximo de tokens permitido para o modelo.
+                        top_p=1,  # Parâmetro para amostragem nuclear.
+                        stop=None,  # Sem tokens de parada específicos.
+                        stream=False  # Desabilita o streaming de respostas.
+                    )
+                    return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
+                except Exception as e:
+                    error_message = str(e)
+                    if 'rate_limit_exceeded' in error_message:
+                        wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
+                        time.sleep(wait_time)  # Espera pelo tempo sugerido antes de tentar novamente
+                    else:
+                        raise e  # Se o erro não for de limite de taxa, relança a exceção
 
         # Formata o histórico do chat para incluir nas mensagens do prompt.
         history_context = ""
