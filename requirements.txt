@@ -4,4 +4,3 @@ toml==0.10.2
 pydub
 crewai
 crewai_tools
-ScrapeWebsiteTool
