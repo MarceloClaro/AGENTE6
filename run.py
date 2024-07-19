@@ -59,7 +59,7 @@ def save_expert(expert_title: str, expert_description: dict):
         file.truncate()  # Remove qualquer conteúdo restante do arquivo após a nova escrita para evitar dados obsoletos.
 
 # Função para buscar uma resposta do assistente baseado no modelo Groq, incluindo o histórico.
-def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, groq_api_key: str, chat_history: list) -> Tuple[str, str]:
+def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list) -> Tuple[str, str]:
     phase_two_response = ""  # Inicializa a variável para armazenar a resposta da segunda fase.
     expert_title = ""  # Inicializa a variável para armazenar o título do especialista.
 
@@ -163,7 +163,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     return expert_title, phase_two_response  # Retorna o título do especialista e a resposta da segunda fase.
 
 # Função para refinar uma resposta existente com base na análise e melhoria do conteúdo.
-def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, groq_api_key: str, references_file: str, chat_history: list) -> str:
+def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list) -> str:
     try:
         client = Groq(api_key=API_KEY_REFINE)  # Usa a chave API específica para refinar respostas.
 
@@ -210,8 +210,8 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"最终目标是提供一个完整且令人满意的回答，符合最高的学术 e profissional标准，"
             f"满足所提出问题的具体需求。"
             f"确保以'markdown'格式呈现回答，并在每行中添加详细注释。"
-            f"保持写作标准在10个段落，每个段落4句话，每句话用逗号分隔，"
-            f"始终遵循亚里士多德的最佳教育实践。"
+            f"保持写作 padrão em 10 parágrafos，每个 parágrafo contendo 4 frases, "
+            f"e sempre seguindo as melhores práticas educacionais de Aristóteles."
             f"\n\nHistórico do chat:{history_context}"
         )
 
@@ -397,14 +397,14 @@ with col2:
     if fetch_clicked:
         if references_file is None:
             st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas. Saída sempre traduzido para o portugues brasileiro com tom profissional.")
-        st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, groq_api_key, chat_history)
+        st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history)
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
         save_chat_history(user_input, user_prompt, st.session_state.resposta_assistente)
 
     if refine_clicked:
         if st.session_state.resposta_assistente:
-            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, groq_api_key, references_file, chat_history)
+            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_file, chat_history)
             save_chat_history(user_input, user_prompt, st.session_state.resposta_refinada)
         else:
             st.warning("Por favor, busque uma resposta antes de refinar.")
@@ -464,4 +464,3 @@ with st.sidebar.expander("Insights do Código"):
 
     Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas. No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais.
     """)
-
