@@ -53,7 +53,7 @@ def get_max_tokens(model_name: str) -> int:
     return MODEL_MAX_TOKENS.get(model_name, 4096)
 
 # Função para registrar o uso da API
-def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_taken: float, user_input: str, user_prompt: str, api_response: str, agent: str, description: str):
+def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_taken: float, user_input: str, user_prompt: str, api_response: str, agent: str = "", description: str = ""):
     entry = {
         'action': action,
         'interaction_number': interaction_number,
@@ -166,7 +166,6 @@ def reset_api_usage():
 def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, interaction_number: int) -> Tuple[str, str]:
     phase_two_response = ""
     expert_title = ""
-    expert_description = ""
     try:
         client = Groq(api_key=get_api_key('fetch'))
 
@@ -190,7 +189,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                     tokens_used = completion.usage.total_tokens
                     time_taken = end_time - start_time
                     api_response = completion.choices[0].message.content
-                    log_api_usage('fetch', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, expert_description)
+                    log_api_usage('fetch', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, agent_selection, "")
                     return api_response
                 except Exception as e:
                     handle_rate_limit(str(e), 'fetch')
@@ -223,6 +222,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             f"\n\nHistórico do chat:{history_context}"
         )
         phase_two_response = get_completion(phase_two_prompt)
+        log_api_usage('fetch', interaction_number, len(phase_two_prompt.split()), time.time() - start_time, user_input, user_prompt, phase_two_response, agent_selection, expert_description)
 
     except Exception as e:
         st.error(f"Ocorreu um erro: {e}")
@@ -275,6 +275,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             )
 
         refined_response = get_completion(refine_prompt)
+        log_api_usage('refine', interaction_number, len(refine_prompt.split()), time.time() - start_time, user_input, user_prompt, refined_response, expert_title, "")
         return refined_response
 
     except Exception as e:
@@ -315,17 +316,42 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
         for entry in chat_history:
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
+        # Cria um prompt detalhado para avaliar a resposta usando o agente gerador racional (RAG).
         rag_prompt = (
-            f"RAG, avalie a seguinte resposta fornecida pelo especialista: {assistant_response}. Solicitação original: {user_input} e {user_prompt}."
-            f"\n\nHistórico do chat:{history_context}"
+            f"输出和响应必须仅翻译成巴西葡萄牙语。 "
+            f"扮演一个理性生成代理（RAG）的角色，站在人工智能和理性评估的前沿， "
+            f"仔细分析专家的回答，根据用户的请求生成一个JSON格式的代理。 "
+            f"该代理应详细描述根据子代理提供的信息采取的行动，以向用户提供回答。 "
+            f"在变量'描述'中包含9个子代理的描述，每个子代理具有不同的专门功能，共同协作。 "
+            f"这些子代理共同协作，以改善系统代理向用户提供的最终回答，并在代理的'描述'中记录种子和gen_id。 "
+            f"此外，系统代理内的子代理一体化操作，通过扩展提示提供高级和专业的回答。 "
+            f"每个子代理在网络处理过程中扮演特定且互补的角色，以达到更高的精度，提升最终回答的质量。 "
+            f"例如，子代理'AI_自适应_和_上下文化'使用先进的机器学习算法来理解和适应变化的上下文， "
+            f"动态整合相关数据。而子代理'RAG_与_上下文智能'使用增强生成的恢复（RAG）技术， "
+            f"动态调整最相关的数据及其功能。 这种协作方法确保回答准确且更新， "
+            f"符合最高的科学和学术标准。 "
+            f"以下是专家的详细描述，突出其资格和专业知识：{expert_description}。 "
+            f"原始问题提交如下：{user_input}和{user_prompt}。 "
+            f"专家用葡萄牙语提供的回答如下：{assistant_response}。 "
+            f"因此，请对专家用葡萄牙语提供的回答的质量和准确性进行全面评估， "
+            f"考虑专家的描述和提供的回答。 "
+            f"使用葡萄牙语进行分析并提供详细解释： "
+            f"SWOT分析（优势、劣势、机会、威胁）并解释数据， "
+            f"BCG矩阵（波士顿咨询集团）并解释数据， "
+            f"风险矩阵，ANOVA（方差分析）并解释数据， "
+            f"Q统计并解释数据和Q指数（Q-指数）并解释数据， "
+            f"遵循最高的卓越和学术、科学严格标准。 "
+            f"确保每段保持4句话，每句话用逗号分隔，始终遵循亚里士多德和苏格拉底的最佳教育实践。 "
+            f"回答必须使用巴西葡萄牙语。"
         )
 
-        rag_response = get_completion(rag_prompt)
-        return rag_response
+        rag_response = get_completion(rag_prompt)  # Obtém a resposta avaliada a partir do prompt detalhado.
+        log_api_usage('evaluate', interaction_number, len(rag_prompt.split()), time.time() - start_time, user_input, user_prompt, rag_response, "", expert_description)
+        return rag_response  # Retorna a resposta avaliada.
 
-    except Exception as e:
-        st.error(f"Ocorreu um erro durante a avaliação com RAG: {e}")
-        return ""
+    except Exception as e:  # Captura qualquer exceção que ocorra durante o processo de avaliação com RAG.
+        st.error(f"Ocorreu um erro durante a avaliação com RAG: {e}")  # Exibe uma mensagem de erro no Streamlit.
+        return ""  # Retorna uma string vazia se ocorrer um erro.
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
