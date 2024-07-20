@@ -53,7 +53,7 @@ def get_max_tokens(model_name: str) -> int:
     return MODEL_MAX_TOKENS.get(model_name, 4096)
 
 # Função para registrar o uso da API
-def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_taken: float, user_input: str, user_prompt: str, api_response: str, agent_used: str = '', agent_description: str = ''):
+def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_taken: float, user_input: str, user_prompt: str, api_response: str, agent_used: str, agent_description: str):
     entry = {
         'action': action,
         'interaction_number': interaction_number,
@@ -190,7 +190,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                     tokens_used = completion.usage.total_tokens
                     time_taken = end_time - start_time
                     api_response = completion.choices[0].message.content
-                    log_api_usage('fetch', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response)
+                    log_api_usage('fetch', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, expert_description)
                     return api_response
                 except Exception as e:
                     handle_rate_limit(str(e), 'fetch')
@@ -255,7 +255,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                     tokens_used = completion.usage.total_tokens
                     time_taken = end_time - start_time
                     api_response = completion.choices[0].message.content
-                    log_api_usage('refine', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response)
+                    log_api_usage('refine', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, "")
                     return api_response
                 except Exception as e:
                     handle_rate_limit(str(e), 'refine')
@@ -282,7 +282,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         return ""
 
 # Função para avaliar resposta com RAG
-def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
+def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
     try:
         client = Groq(api_key=get_api_key('evaluate'))
 
@@ -306,7 +306,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                     tokens_used = completion.usage.total_tokens
                     time_taken = end_time - start_time
                     api_response = completion.choices[0].message.content
-                    log_api_usage('evaluate', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response)
+                    log_api_usage('evaluate', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, expert_description)
                     return api_response
                 except Exception as e:
                     handle_rate_limit(str(e), 'evaluate')
@@ -343,12 +343,12 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
             f"回答必须使用巴西葡萄牙语。"
         )
 
-        rag_response = get_completion(rag_prompt)  # Obtém a resposta avaliada a partir do prompt detalhado.
-        return rag_response  # Retorna a resposta avaliada.
+        rag_response = get_completion(rag_prompt)
+        return rag_response
 
-    except Exception as e:  # Captura qualquer exceção que ocorra durante o processo de avaliação com RAG.
-        st.error(f"Ocorreu um erro durante a avaliação com RAG: {e}")  # Exibe uma mensagem de erro no Streamlit.
-        return ""  # Retorna uma string vazia se ocorrer um erro.
+    except Exception as e:
+        st.error(f"Ocorreu um erro durante a avaliação com RAG: {e}")
+        return ""
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
@@ -424,7 +424,7 @@ with col2:
 
     if evaluate_clicked:
         if st.session_state.resposta_assistente and st.session_state.descricao_especialista_ideal:
-            st.session_state.rag_resposta = evaluate_response_with_rag(user_input, user_prompt, st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, model_name, temperature, chat_history, interaction_number)
+            st.session_state.rag_resposta = evaluate_response_with_rag(user_input, user_prompt, st.session_state.descricao_especialista_ideal, st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, model_name, temperature, chat_history, interaction_number)
             save_chat_history(user_input, user_prompt, st.session_state.rag_resposta)
         else:
             st.warning("Por favor, busque uma resposta e forneça uma descrição do especialista antes de avaliar com RAG.")
