@@ -2,8 +2,6 @@ import json
 import streamlit as st
 import os
 from typing import Tuple, List
-from groq import Groq
-import time
 from datetime import datetime
 from crewai import Agent, Task, Crew, Process
 from crewai_tools.tools.scrape_website_tool.scrape_website_tool import ScrapeWebsiteTool
@@ -63,6 +61,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     expert_title = ""
 
     try:
+        from groq import Groq
         client = Groq(api_key=API_KEY_FETCH)
 
         def get_completion(prompt: str) -> str:
@@ -130,7 +129,8 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
         # Raspagem de websites
         for tool in scraping_tools:
             try:
-                tool.scrape()
+                result = tool.scrape()
+                st.write(f"Conteúdo raspado de {tool.website_url}: {result}")
             except Exception as scrape_error:
                 st.warning(f"Falha ao raspar {tool.website_url}: {scrape_error}")
 
@@ -165,6 +165,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 # Função para refinar uma resposta existente com base na análise e melhoria do conteúdo.
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list) -> str:
     try:
+        from groq import Groq
         client = Groq(api_key=API_KEY_REFINE)
 
         def get_completion(prompt: str) -> str:
@@ -230,6 +231,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 # Função para avaliar a resposta com base em um agente gerador racional (RAG).
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, groq_api_key: str, chat_history: list) -> str:
     try:
+        from groq import Groq
         client = Groq(api_key=API_KEY_EVALUATE)
 
         def get_completion(prompt: str) -> str:
@@ -237,7 +239,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é um assistente útil。"},
+                            {"role": "system", "content": "Você é一个assistente útil。"},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
