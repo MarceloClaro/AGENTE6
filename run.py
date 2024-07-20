@@ -500,6 +500,17 @@ with st.sidebar.expander("Insights do Código"):
     Instagram: [https://www.instagram.com/marceloclaro.geomaker/](https://www.instagram.com/marceloclaro.geomaker/)
     """)
     
+
+
+# Carrega o uso da API e plota o histograma
+api_usage = load_api_usage()
+if api_usage:
+    plot_api_usage(api_usage)
+
+# Botão para resetar os gráficos
+if st.sidebar.button("Resetar Gráficos"):
+    reset_api_usage()
+
     import base64
     
     def main():
@@ -535,12 +546,3 @@ with st.sidebar.expander("Insights do Código"):
                     audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
             except FileNotFoundError:
                 audio_placeholder.error(f"Arquivo {mp3_path} não encontrado.")
-
-# Carrega o uso da API e plota o histograma
-api_usage = load_api_usage()
-if api_usage:
-    plot_api_usage(api_usage)
-
-# Botão para resetar os gráficos
-if st.sidebar.button("Resetar Gráficos"):
-    reset_api_usage()
