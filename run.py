@@ -484,7 +484,22 @@ with st.sidebar.expander("Insights do Código"):
     Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas. No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais.
     """)
     #_________________________________________________________________
-    import streamlit as st
+
+
+       
+    # Informações de contato
+    st.sidebar.image("eu.ico", width=80)
+    st.sidebar.write("""
+    Projeto Geomaker + IA 
+    - Professor: Marcelo Claro.
+
+    Contatos: marceloclaro@gmail.com
+
+    Whatsapp: (88)981587145
+
+    Instagram: [https://www.instagram.com/marceloclaro.geomaker/](https://www.instagram.com/marceloclaro.geomaker/)
+    """)
+    
     import base64
     
     def main():
@@ -520,20 +535,6 @@ with st.sidebar.expander("Insights do Código"):
                     audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
             except FileNotFoundError:
                 audio_placeholder.error(f"Arquivo {mp3_path} não encontrado.")
-
-       
-    # Informações de contato
-    st.sidebar.image("eu.ico", width=80)
-    st.sidebar.write("""
-    Projeto Geomaker + IA 
-    - Professor: Marcelo Claro.
-
-    Contatos: marceloclaro@gmail.com
-
-    Whatsapp: (88)981587145
-
-    Instagram: [https://www.instagram.com/marceloclaro.geomaker/](https://www.instagram.com/marceloclaro.geomaker/)
-    """)
 
 # Carrega o uso da API e plota o histograma
 api_usage = load_api_usage()
