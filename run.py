@@ -334,7 +334,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             f"因此，请仔细评估葡萄牙专家提供的答案的质量和准确性，"   
             f"考虑专家提供的描述和答案，"     
             f"用葡萄牙语分析并提供详细解释,"
-            f" 分析 SWOT- 优势 劣势 机会、威胁 - 和数据解释"     
+            f"SWOT分析（优势、劣势、机会、威胁）并解释数据，"     
             f"科学的差距分析和数据解释"，     
             f"BCG 矩阵（波士顿咨询集团）并解读数据"，    
             f"风险矩阵、ANOVA（方差分析）和数据解释"，    
