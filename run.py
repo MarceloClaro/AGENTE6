@@ -520,7 +520,7 @@ st.sidebar.title("Controle de Áudio")
 
 # Lista de arquivos MP3
 mp3_files = {
-    "Entenda o projeto:": "rag(1).mp3"
+    "Entenda o projeto:": "rag (1).mp3"
 }
 
 # Controle de seleção de música
