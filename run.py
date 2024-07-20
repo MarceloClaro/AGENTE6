@@ -197,7 +197,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
         if agent_selection == "Escolher um especialista...":
             phase_one_prompt = (
-                f"Descreva o especialista ideal para responder a seguinte solicitação: {user_input} e {user_prompt}."
+                f"Descreva o especialista ideal para responder a seguinte solicitação, , 提供系统代理向用户提供的最终响应，其中种子和gen_id记录在代理描述中。: {user_input} e {user_prompt}."
             )
             phase_one_response = get_completion(phase_one_prompt)
             first_period_index = phase_one_response.find(".")
@@ -219,7 +219,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         phase_two_prompt = (
-            f"{expert_title}, responda em português obrigatoriamente a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
+            f"{expert_title}, responda em português obrigatoriamente a seguinte solicitação de forma completa e detalhada, 提供系统代理向用户提供的最终响应，其中种子和gen_id记录在代理描述中。: {user_input} e {user_prompt}."
             f"\n\nHistórico do chat:{history_context}"
         )
         phase_two_response = get_completion(phase_two_prompt)
@@ -265,7 +265,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         refine_prompt = (
-            f"{expert_title}, refine em português obrigatoriamente, a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
+            f"{expert_title}, refine em português obrigatoriamente, a seguinte resposta, , 提供系统代理向用户提供的最终响应，其中种子和gen_id记录在代理描述中。: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
             f"\n\nHistórico do chat:{history_context}"
         )
 
@@ -321,11 +321,9 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             f"仔细分析专家的回答，并根据用户的请求生成一个 JSON 格式的代理。 "
             f"代理应该回答用户，详细描述根据子代理提供的信息采取的行动。 "
             f"在变量 'description' 中包含 9 个子代理的描述，每个子代理具有不同的专业功能，共同合作。 "
-            f"这些子代理共同合作，以改进系统代理提供给用户的最终答案，在代理的描述中记录 seed 和 gen_id。 "
+            f"提供系统代理向用户提供的最终响应，其中种子和gen_id记录在代理描述中。 "
             f"此外，子代理在系统代理中以集成方式运行，通过扩展的提示提供高级和专业的回答。 "
             f"每个子代理在网络处理过程中发挥特定且互补的作用，以实现更高的精度和改进最终回答的质量。 "
-            f"例如，子代理 'AI_ADAPTIVE_AND_CONTEXTUALIZED' 使用先进的机器学习算法来理解和适应上下文的变化，"
-            f"动态集成相关数据。子代理 'RAG_WITH_CONTEXTUAL_INTELLIGENCE' 使用增强生成恢复 (RAG) 技术，"
             f"动态调整最相关的数据及其特征。这种协作方法确保答案准确且最新，"
             f"符合最高的科学和学术标准。 "
             f"以下是专家的详细描述，突出他们的资历和经验：{expert_description}。 "
