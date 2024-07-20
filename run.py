@@ -235,11 +235,11 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"有必要以科学严谨的态度关注并探讨每个方面。"
             f"因此，我将概述需要考虑和调查的主要要素，提供基于证据的详细分析，"
             f"避免偏见，并根据需要引用参考文献：{phase_two_response}。"
-            f"最终目标是提供一个完整且令人满意的回答，符合最高的学术 e profissional标准，"
-            f"满足所提出问题的具体需求。"
-            f"确保以'markdown'格式呈现回答，并在每行中添加详细注释。"
-            f"保持写作 padrão em 10 parágrafos，每个 parágrafo contendo 4 frases, "
-            f"e sempre seguindo as melhores práticas educacionais de Aristóteles."
+            f"最终目标是 fornecer uma resposta completa e satisfatória, de acordo com os mais altos padrões acadêmicos e profissionais, "
+            f"atendendo às necessidades específicas do problema apresentado."
+            f"Certifique-se de apresentar a resposta em formato 'markdown', com explicações detalhadas em cada linha."
+            f"Manter um padrão de escrita com 10 parágrafos, cada parágrafo contendo 4 frases, "
+            f"sempre seguindo as melhores práticas educacionais de Aristóteles."
             f"\n\nHistórico do chat:{history_context}"
         )
 
@@ -382,15 +382,15 @@ def plot_api_usage(api_usage):
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
     ax1.hist([fetch_tokens, refine_tokens, evaluate_tokens], bins=20, label=['Fetch', 'Refine', 'Evaluate'], color=['blue', 'green', 'red'])
-    ax1.set_title('Token Usage per API Call')
+    ax1.set_title('Uso de Tokens por Chamada de API')
     ax1.set_xlabel('Tokens')
-    ax1.set_ylabel('Frequency')
+    ax1.set_ylabel('Frequência')
     ax1.legend()
 
     ax2.hist([fetch_times, refine_times, evaluate_times], bins=20, label=['Fetch', 'Refine', 'Evaluate'], color=['blue', 'green', 'red'])
-    ax2.set_title('Time Taken per API Call')
-    ax2.set_xlabel('Time (s)')
-    ax2.set_ylabel('Frequency')
+    ax2.set_title('Tempo de Resposta por Chamada de API')
+    ax2.set_xlabel('Tempo (s)')
+    ax2.set_ylabel('Frequência')
     ax2.legend()
 
     st.sidebar.pyplot(fig)
