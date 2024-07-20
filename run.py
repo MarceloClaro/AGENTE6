@@ -1,9 +1,9 @@
-import json
-import streamlit as st
-import os
-from typing import Tuple
-from groq import Groq
-import time
+import json  # Importa o módulo json para trabalhar com dados JSON.
+import streamlit as st  # Importa o Streamlit para criar aplicativos web interativos.
+import os  # Importa o módulo os para interagir com o sistema operacional, como verificar a existência de arquivos.
+from typing import Tuple  # Importa Tuple da biblioteca typing para fornecer tipos de dados mais precisos para funções.
+from groq import Groq  # Importa a biblioteca Groq, possivelmente para uma função não especificada neste código.
+import time  # Importa o módulo time para adicionar atrasos entre as tentativas de solicitação da API
 from crewai_tools.tools.scrape_website_tool.scrape_website_tool import ScrapeWebsiteTool
 
 # Configura o layout da página Streamlit para ser "wide", ocupando toda a largura disponível.
@@ -28,34 +28,46 @@ API_KEY_EVALUATE = "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"
 
 # Define uma função para carregar as opções de Agentes a partir do arquivo JSON.
 def load_agent_options() -> list:
-    agent_options = ['Escolher um especialista...']
-    if os.path.exists(FILEPATH):
-        with open(FILEPATH, 'r') as file:
+    agent_options = ['Escolher um especialista...']  # Inicia a lista de opções com uma opção padrão.
+    if os.path.exists(FILEPATH):  # Verifica se o arquivo de Agentes existe.
+        with open(FILEPATH, 'r') as file:  # Abre o arquivo para leitura.
             try:
-                agents = json.load(file)
+                agents = json.load(file)  # Tenta carregar os dados JSON do arquivo.
+                # Adiciona os nomes dos Agentes à lista de opções, se existirem.
                 agent_options.extend([agent["agente"] for agent in agents if "agente" in agent])
-            except json.JSONDecodeError:
-                st.error("Erro ao ler o arquivo de Agentes. Por favor, verifique o formato.")
-    return agent_options
+            except json.JSONDecodeError:  # Captura erros de decodificação JSON.
+                st.error("Erro ao ler o arquivo de Agentes. Por favor, verifique o formato.")  # Exibe uma mensagem de erro no Streamlit.
+    return agent_options  # Retorna a lista de opções de Agentes.
 
 # Define uma função para obter o número máximo de tokens permitido por um modelo específico.
 def get_max_tokens(model_name: str) -> int:
+    # Retorna o número máximo de tokens para o modelo fornecido, ou 4096 se o modelo não estiver no dicionário.
     return MODEL_MAX_TOKENS.get(model_name, 4096)
 
 # Define uma função para recarregar a página do Streamlit.
 def refresh_page():
-    st.experimental_rerun()
+    st.experimental_rerun()  # Recarrega a aplicação Streamlit.
 
 # Define uma função para salvar um novo especialista no arquivo JSON.
 def save_expert(expert_title: str, expert_description: dict):
-    with open(FILEPATH, 'r+') as file:
+    with open(FILEPATH, 'r+') as file:  # Abre o arquivo para leitura e escrita.
+        # Carrega os Agentes existentes se o arquivo não estiver vazio, caso contrário, inicia uma lista vazia.
         agents = json.load(file) if os.path.getsize(FILEPATH) > 0 else []
+        # Adiciona o novo especialista à lista de Agentes.
         agents.append({"agente": expert_title, "descricao": expert_description})
-        file.seek(0)
-        json.dump(agents, file, indent=4)
-        file.truncate()
+        file.seek(0)  # Move o ponteiro do arquivo para o início.
+        json.dump(agents, file, indent=4)  # Grava a lista de Agentes de volta no arquivo com indentação para melhor legibilidade.
+        file.truncate()  # Remove qualquer conteúdo restante do arquivo após a nova escrita para evitar dados obsoletos.
 
-# Função para buscar uma resposta do assistente baseado no modelo Groq, incluindo o histórico.
+# Função para criar ferramentas de raspagem
+def create_scraping_tools(url_list: list) -> list:
+    scraping_tools = []
+    for url in url_list:
+        tool = ScrapeWebsiteTool(website_url=url)
+        scraping_tools.append(tool)
+    return scraping_tools
+
+# Função para buscar uma resposta do assistente baseado no modelo Groq, incluindo o histórico e ferramentas de raspagem.
 def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, scraping_tools: list) -> Tuple[str, str]:
     phase_two_response = ""
     expert_title = ""
@@ -123,7 +135,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                     expert_title = agent_found["agente"]
                     expert_description = agent_found["descricao"]
                 else:
-                    raise ValueError("Especialista selecionado não encontrado no arquivo。")
+                    raise ValueError("Especialista selecionado não encontrado no arquivo.")
 
         history_context = ""
         for entry in chat_history:
@@ -145,6 +157,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             f"始终遵循亚里士多德的最佳教育实践。"
             f"\n\nHistórico do chat:{history_context}"
         )
+
         phase_two_response = get_completion(phase_two_prompt)
 
     except Exception as e:
@@ -153,7 +166,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
     return expert_title, phase_two_response
 
-# Função para refinar uma resposta existente com base na análise e melhoria do conteúdo。
+# Função para refinar uma resposta existente com base na análise e melhoria do conteúdo.
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list) -> str:
     try:
         client = Groq(api_key=API_KEY_REFINE)
@@ -163,7 +176,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "你是一个有帮助的助手。"},
+                            {"role": "system", "content": "Você é um assistente útil."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -177,7 +190,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 except Exception as e:
                     error_message = str(e)
                     if 'rate_limit_exceeded' in error_message:
-                        wait_time = float(error_message.split("try again in")[1].split("s。")[0].strip())
+                        wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
                         time.sleep(wait_time)
                     else:
                         raise e
@@ -206,8 +219,8 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         if not references_file:
             refine_prompt += (
                 f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, "
-                f"mesmo sem o uso de fontes externas。"
-                f"Mantenha um padrão de escrita consistente, com 10 parágrafos, cada parágrafo contendo 4 frases, e cite de acordo com as normas ABNT。"
+                f"mesmo sem o uso de fontes externas. "
+                f"Mantenha um padrão de escrita consistente, com 10 parágrafos, cada parágrafo contendo 4 frases, e cite de acordo com as normas ABNT. "
                 f"Utilize sempre um tom profissional e traduza tudo para o português do Brasil。"
             )
 
@@ -218,7 +231,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         st.error(f"Ocorreu um erro durante o refinamento: {e}")
         return ""
 
-# Função para avaliar a resposta com base em um agente gerador racional (RAG)。
+# Função para avaliar a resposta com base em um agente gerador racional (RAG).
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, groq_api_key: str, chat_history: list) -> str:
     try:
         client = Groq(api_key=API_KEY_EVALUATE)
@@ -228,7 +241,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "你是一个有帮助的助手。"},
+                            {"role": "system", "content": "Você é um assistente útil。"},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -242,7 +255,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                 except Exception as e:
                     error_message = str(e)
                     if 'rate_limit_exceeded' in error_message:
-                        wait_time = float(error_message.split("try again in")[1].split("s。")[0].strip())
+                        wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
                         time.sleep(wait_time)
                     else:
                         raise e
@@ -317,11 +330,11 @@ def clear_chat_history(chat_history_file=CHAT_HISTORY_FILE):
     if os.path.exists(chat_history_file):
         os.remove(chat_history_file)
 
-# Carrega as opções de Agentes a partir do arquivo JSON。
+# Carrega as opções de Agentes a partir do arquivo JSON.
 agent_options = load_agent_options()
 
 # Layout da página
-st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker。 "A melhor forma de prever o futuro é inventá-lo。" - Alan Kay', use_column_width='always', output_format='auto')
+st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo。" - Alan Kay', use_column_width='always', output_format='auto')
 st.markdown("<h1 style='text-align: center;'>Agentes Alan Kay</h1>", unsafe_allow_html=True)
 
 st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão。</h2>", unsafe_allow_html=True)
@@ -360,6 +373,8 @@ with col1:
     evaluate_clicked = st.button("Avaliar Resposta com RAG")
     refresh_clicked = st.button("Apagar")
 
+    url_list = st.text_area("URLs dos sites para raspagem (separados por vírgula):", height=200, key="url_lista")
+
     references_file = st.file_uploader("Upload do arquivo JSON com referências (opcional)", type="json", key="arquivo_referencias")
 
 with col2:
@@ -376,15 +391,12 @@ with col2:
 
     container_saida = st.container()
 
-    chat_history = load_chat_history()[-memory_selection:]
+    chat_history = load_chat_history()[-memory_selection:]  # Carrega as últimas 'memory_selection' interações
 
     if fetch_clicked:
+        scraping_tools = create_scraping_tools(url_list.split(','))
         if references_file is None:
-            st.warning("Não foi fornecido um arquivo de referências。Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas。Saída sempre traduzido para o portugues brasileiro com tom profissional。")
-        scraping_tools = [
-            ScrapeWebsiteTool(website_url="https://www.artificialintelligence-news.com/"),
-            ScrapeWebsiteTool(website_url="https://www.forbes.com/ai/")
-        ]
+            st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas. Saída sempre traduzido para o portugues brasileiro com tom profissional.")
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, scraping_tools)
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
@@ -412,6 +424,7 @@ with col2:
         if st.session_state.rag_resposta:
             st.write(f"\n**#Avaliação com RAG:**\n{st.session_state.rag_resposta}")
 
+    # Exibe o histórico do chat
     st.markdown("### Histórico do Chat")
     for entry in chat_history:
         st.write(f"**Entrada do Usuário:** {entry['user_input']}")
@@ -420,14 +433,15 @@ with col2:
         st.markdown("---")
 
 if refresh_clicked:
-    clear_chat_history()
-    st.session_state.clear()
-    st.experimental_rerun()
+    clear_chat_history()  # Limpa o arquivo de histórico de chat
+    st.session_state.clear()  # Reseta o estado do Streamlit
+    st.experimental_rerun()  # Recarrega a aplicação Streamlit
 
+# Sidebar com manual de uso
 st.sidebar.image("logo.png", width=200)
 with st.sidebar.expander("Insights do Código"):
     st.markdown("""
-    O código do Agentes Alan Kay é um exemplo de uma aplicação de chat baseada em modelos de linguagem (LLMs) utilizando a biblioteca Streamlit e a API Groq。Aqui, vamos analisar detalhadamente o código e discutir suas inovações, pontos positivos e limitações。
+    O código do Agentes Alan Kay é um exemplo de uma aplicação de chat baseada em modelos de linguagem (LLMs) utilizando a biblioteca Streamlit e a API Groq. Aqui, vamos analisar detalhadamente o código e discutir suas inovações, pontos positivos e limitações。
 
     **Inovações:**
     - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA, para gerar respostas mais precisas e personalizadas。
@@ -446,7 +460,7 @@ with st.sidebar.expander("Insights do Código"):
     - Necessidade de treinamento adicional: O modelo de linguagem pode precisar de treinamento adicional para lidar com consultas mais complexas ou específicas。
 
     **Importância de ter colocado instruções em chinês:**
-    A linguagem chinesa tem uma densidade de信息 mais alta do que muitas outras línguas, o que significa que os modelos de linguagem precisam processar menos tokens para entender o contexto e gerar respostas precisas。Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens。Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz。
+    A linguagem chinesa tem uma densidade de informação mais alta do que muitas outras línguas, o que significa que os modelos de linguagem precisam processar menos tokens para entender o contexto e gerar respostas precisas。 Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens。 Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz。
 
-    Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas。No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais。
+    Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas。 No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais。
     """)
