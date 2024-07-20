@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from typing import Tuple
 from groq import Groq
+import base64
 
 # Configurações da página do Streamlit
 st.set_page_config(layout="wide")
@@ -197,7 +198,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
         if agent_selection == "Escolher um especialista...":
             phase_one_prompt = (
-                f"Descreva o especialista ideal para responder a seguinte solicitação, , 提供系统代理向用户提供的最终响应，其中种子和gen_id记录在代理描述中。: {user_input} e {user_prompt}."
+                f"Descreva o especialista ideal para responder a seguinte solicitação: {user_input} e {user_prompt}."
             )
             phase_one_response = get_completion(phase_one_prompt)
             first_period_index = phase_one_response.find(".")
@@ -219,7 +220,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         phase_two_prompt = (
-            f"{expert_title}, responda em português obrigatoriamente a seguinte solicitação de forma completa e detalhada, 提供系统代理向用户提供的最终响应，其中种子和gen_id记录在代理描述中。: {user_input} e {user_prompt}."
+            f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
             f"\n\nHistórico do chat:{history_context}"
         )
         phase_two_response = get_completion(phase_two_prompt)
@@ -265,7 +266,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         refine_prompt = (
-            f"{expert_title}, refine em português obrigatoriamente, a seguinte resposta, , 提供系统代理向用户提供的最终响应，其中种子和gen_id记录在代理描述中。: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
+            f"{expert_title}, refine a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
             f"\n\nHistórico do chat:{history_context}"
         )
 
@@ -316,9 +317,16 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         rag_prompt = (
-            f"结果和答案必须翻译成巴西葡萄牙语。Responda em português obrigatoriamente. "
+            f"结果和答案必须翻译成巴西葡萄牙语。 "
             f"扮演一个理性生成器 (RAG) 的角色，站在人工智能和理性评估的前沿，"
-            f"提供系统代理向用户提供的最终响应，其中种子和gen_id记录在代理描述中。 "
+            f"仔细分析专家的回答，并根据用户的请求生成一个 JSON 格式的代理。 "
+            f"代理应该回答用户，详细描述根据子代理提供的信息采取的行动。 "
+            f"在变量 'description' 中包含 9 个子代理的描述，每个子代理具有不同的专业功能，共同合作。 "
+            f"这些子代理共同合作，以改进系统代理提供给用户的最终答案，在代理的描述中记录 seed 和 gen_id。 "
+            f"此外，子代理在系统代理中以集成方式运行，通过扩展的提示提供高级和专业的回答。 "
+            f"每个子代理在网络处理过程中发挥特定且互补的作用，以实现更高的精度和改进最终回答的质量。 "
+            f"例如，子代理 'AI_ADAPTIVE_AND_CONTEXTUALIZED' 使用先进的机器学习算法来理解和适应上下文的变化，"
+            f"动态集成相关数据。子代理 'RAG_WITH_CONTEXTUAL_INTELLIGENCE' 使用增强生成恢复 (RAG) 技术，"
             f"动态调整最相关的数据及其特征。这种协作方法确保答案准确且最新，"
             f"符合最高的科学和学术标准。 "
             f"以下是专家的详细描述，突出他们的资历和经验：{expert_description}。 "
@@ -331,7 +339,8 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             f"风险矩阵，ANOVA（方差分析）和数据解释，"
             f"Q 统计和数据解释，以及 Q 指数和数据解释。"
             f"每段保持 4 句话，每句用逗号分隔，始终遵循亚里士多德和苏格拉底的最佳教育实践。"
-            f"所有答案必须使用巴西葡萄牙语。Responda em português obrigatoriamente."
+            f"所有答案必须使用巴西葡萄牙语。"
+
         )
 
         rag_response = get_completion(rag_prompt)
@@ -483,10 +492,7 @@ with st.sidebar.expander("Insights do Código"):
 
     Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas. No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais.
     """)
-    #_________________________________________________________________
 
-
-       
     # Informações de contato
     st.sidebar.image("eu.ico", width=80)
     st.sidebar.write("""
@@ -499,8 +505,6 @@ with st.sidebar.expander("Insights do Código"):
 
     Instagram: [https://www.instagram.com/marceloclaro.geomaker/](https://www.instagram.com/marceloclaro.geomaker/)
     """)
-    
-
 
 # Carrega o uso da API e plota o histograma
 api_usage = load_api_usage()
@@ -511,38 +515,41 @@ if api_usage:
 if st.sidebar.button("Resetar Gráficos"):
     reset_api_usage()
 
-    import base64
-    
-    def main():
-        # Adiciona um título na barra lateral
-        st.sidebar.title("Controle de Áudio")
-        
-        # Lista de arquivos MP3
-        mp3_files = {
-            "rag.mp3"
-        }
-    
-        # Controle de seleção de música
-        selected_mp3 = st.sidebar.radio("Escolha uma música", list(mp3_files.keys()))
-    
-        # Opção de loop
-        loop = st.sidebar.checkbox("Repetir música")
-    
-        # Carregar e exibir o player de áudio
-        audio_placeholder = st.sidebar.empty()
-        if selected_mp3:
-            mp3_path = mp3_files[selected_mp3]
-            try:
-                with open(mp3_path, "rb") as audio_file:
-                    audio_bytes = audio_file.read()
-                    audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
-                    loop_attr = "loop" if loop else ""
-                    audio_html = f"""
-                    <audio id="audio-player" controls {loop_attr}>
-                      <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
-                      Seu navegador não suporta o elemento de áudio.
-                    </audio>
-                    """
-                    audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
-            except FileNotFoundError:
-                audio_placeholder.error(f"Arquivo {mp3_path} não encontrado.")
+# Controle de Áudio
+st.sidebar.title("Controle de Áudio")
+
+# Lista de arquivos MP3
+mp3_files = {
+    "Agente Alan Kay": "AGENTE-4AlanKay1.mp3",
+    "Agente 4": "agente4.mp3",
+    "Agente Alan-Kay": "AGENTEAlan-Kay.mp3",
+    "Instrumental": "ambienteindia.mp3"
+}
+
+# Controle de seleção de música
+selected_mp3 = st.sidebar.radio("Escolha uma música", list(mp3_files.keys()))
+
+# Opção de loop
+loop = st.sidebar.checkbox("Repetir música")
+
+# Botão de play
+play_button = st.sidebar.button("Play")
+
+# Carregar e exibir o player de áudio
+audio_placeholder = st.sidebar.empty()
+if selected_mp3 and play_button:
+    mp3_path = mp3_files[selected_mp3]
+    try:
+        with open(mp3_path, "rb") as audio_file:
+            audio_bytes = audio_file.read()
+            audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+            loop_attr = "loop" if loop else ""
+            audio_html = f"""
+            <audio id="audio-player" controls autoplay {loop_attr}>
+              <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+              Seu navegador não suporta o elemento de áudio.
+            </audio>
+            """
+            audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
+    except FileNotFoundError:
+        audio_placeholder.error(f"Arquivo {mp3_path} não encontrado.")
