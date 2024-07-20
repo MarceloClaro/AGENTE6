@@ -49,14 +49,13 @@ def get_max_tokens(model_name: str) -> int:
     return MODEL_MAX_TOKENS.get(model_name, 4096)
 
 # Função para lidar com erros de limite de taxa
-def handle_rate_limit(api_key: str, error_message: str) -> str:
+def handle_rate_limit(error_message: str):
     if 'rate_limit_exceeded' in error_message:
         wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
         st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
         time.sleep(wait_time)  # Espera pelo tempo sugerido antes de tentar novamente
-        return API_KEY_BACKUP if api_key != API_KEY_BACKUP else api_key
-    else:
-        raise Exception(error_message)  # Relança a exceção se não for um erro de limite de taxa
+        return True
+    return False
 
 # Define uma função para recarregar a página do Streamlit.
 def refresh_page():
@@ -74,14 +73,14 @@ def save_expert(expert_title: str, expert_description: dict):
         file.truncate()  # Remove qualquer conteúdo restante do arquivo após a nova escrita para evitar dados obsoletos.
 
 # Função para registrar o uso da API
-def log_api_usage(action: str, tokens_used: int, time_taken: float, interaction_num: int, user_input: str, response: str):
+def log_api_usage(action: str, tokens_used: int, time_taken: float, interaction_num: int, user_input: str, user_response: str):
     entry = {
-        'action': action,
         'interaction_num': interaction_num,
+        'action': action,
         'tokens_used': tokens_used,
         'time_taken': time_taken,
         'user_input': user_input,
-        'response': response
+        'user_response': user_response
     }
     if os.path.exists(API_USAGE_FILE):
         with open(API_USAGE_FILE, 'r+') as file:
@@ -97,14 +96,13 @@ def log_api_usage(action: str, tokens_used: int, time_taken: float, interaction_
 def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, interaction_num: int) -> Tuple[str, str]:
     phase_two_response = ""  # Inicializa a variável para armazenar a resposta da segunda fase.
     expert_title = ""  # Inicializa a variável para armazenar o título do especialista.
-    current_api_key = API_KEY_FETCH
+    client = Groq(api_key=API_KEY_FETCH)  # Usa a chave API específica para buscar respostas.
+    backup = False
 
     try:
-        client = Groq(api_key=current_api_key)  # Usa a chave API específica para buscar respostas.
-
         # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
-            nonlocal current_api_key
+            nonlocal client, backup
             start_time = time.time()
             while True:  # Loop para tentar novamente em caso de erro de limite de taxa
                 try:
@@ -126,7 +124,11 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                     log_api_usage('fetch', tokens_used, time_taken, interaction_num, user_input, completion.choices[0].message.content)
                     return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
                 except Exception as e:
-                    current_api_key = handle_rate_limit(current_api_key, str(e))  # Lida com erros de limite de taxa
+                    if not backup and handle_rate_limit(str(e)):
+                        client = Groq(api_key=API_KEY_BACKUP)  # Usa a chave API de backup
+                        backup = True
+                    else:
+                        raise e  # Relança a exceção se não for um erro de limite de taxa
 
         if agent_selection == "Escolher um especialista...":
             # Se nenhum especialista específico for selecionado, cria um prompt para determinar o título e descrição do especialista.
@@ -201,14 +203,13 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
 # Função para refinar uma resposta existente com base na análise e melhoria do conteúdo.
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list, interaction_num: int) -> str:
-    current_api_key = API_KEY_REFINE
+    client = Groq(api_key=API_KEY_REFINE)  # Usa a chave API específica para refinar respostas.
+    backup = False
 
     try:
-        client = Groq(api_key=current_api_key)  # Usa a chave API específica para refinar respostas.
-
         # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
-            nonlocal current_api_key
+            nonlocal client, backup
             start_time = time.time()
             while True:  # Loop para tentar novamente em caso de erro de limite de taxa
                 try:
@@ -230,7 +231,11 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                     log_api_usage('refine', tokens_used, time_taken, interaction_num, user_input, completion.choices[0].message.content)
                     return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
                 except Exception as e:
-                    current_api_key = handle_rate_limit(current_api_key, str(e))  # Lida com erros de limite de taxa
+                    if not backup and handle_rate_limit(str(e)):
+                        client = Groq(api_key=API_KEY_BACKUP)  # Usa a chave API de backup
+                        backup = True
+                    else:
+                        raise e  # Relança a exceção se não for um erro de limite de taxa
 
         # Formata o histórico do chat para incluir nas mensagens do prompt.
         history_context = ""
@@ -247,11 +252,11 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"有必要以科学严谨的态度关注并探讨每个方面。"
             f"因此，我将概述需要考虑和调查的主要要素，提供基于证据的详细分析，"
             f"避免偏见，并根据需要引用参考文献：{phase_two_response}。"
-            f"最终目标是提供一个完整且令人满意的回答，符合最高 de padrões acadêmicos e profissionais, "
-            f"e satisfazendo as necessidades específicas das questões levantadas."
-            f"Certifique-se de apresentar a resposta em formato 'markdown', com anotações detalhadas em cada linha."
-            f"Mantenha o padrão de escrita em 10 parágrafos, com cada parágrafo contendo 4 frases, "
-            f"e siga sempre as melhores práticas educacionais de Aristóteles."
+            f"最终目标是提供一个完整且令人满意的回答，符合最高 do acadêmico e profissional padrão，"
+            f"满足所提出问题的具体需求。"
+            f"确保以'markdown'格式呈现回答，并在每行中添加详细注释。"
+            f"保持 padrão de escrita em 10 parágrafos，每个 parágrafo contendo 4 frases, "
+            f"e sempre seguindo as melhores práticas educacionais de Aristóteles."
             f"\n\nHistórico do chat:{history_context}"
         )
 
@@ -273,14 +278,13 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 
 # Função para avaliar a resposta com base em um agente gerador racional (RAG).
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_num: int) -> str:
-    current_api_key = API_KEY_EVALUATE
+    client = Groq(api_key=API_KEY_EVALUATE)  # Usa a chave API específica para avaliar respostas.
+    backup = False
 
     try:
-        client = Groq(api_key=current_api_key)  # Usa a chave API específica para avaliar respostas.
-
         # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
-            nonlocal current_api_key
+            nonlocal client, backup
             start_time = time.time()
             while True:  # Loop para tentar novamente em caso de erro de limite de taxa
                 try:
@@ -302,7 +306,11 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                     log_api_usage('evaluate', tokens_used, time_taken, interaction_num, user_input, completion.choices[0].message.content)
                     return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
                 except Exception as e:
-                    current_api_key = handle_rate_limit(current_api_key, str(e))  # Lida com erros de limite de taxa
+                    if not backup and handle_rate_limit(str(e)):
+                        client = Groq(api_key=API_KEY_BACKUP)  # Usa a chave API de backup
+                        backup = True
+                    else:
+                        raise e  # Relança a exceção se não for um erro de limite de taxa
 
         # Formata o histórico do chat para incluir nas mensagens do prompt.
         history_context = ""
@@ -388,10 +396,6 @@ def load_api_usage():
 def plot_api_usage(api_usage):
     df = pd.DataFrame(api_usage)
 
-    if df.empty:
-        st.sidebar.write("Nenhum dado de uso da API disponível.")
-        return
-
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
     sns.histplot(df[df['action'] == 'fetch']['tokens_used'], bins=20, color='blue', label='Fetch', ax=ax1, kde=True)
@@ -412,8 +416,7 @@ def plot_api_usage(api_usage):
 
     st.sidebar.pyplot(fig)
 
-    # Exibe DataFrame no sidebar
-    st.sidebar.write("### DataFrame de Uso da API")
+    st.sidebar.write("### Dataframe de Uso da API")
     st.sidebar.dataframe(df)
 
 # Função para resetar o uso da API
@@ -483,26 +486,24 @@ with col2:
 
     chat_history = load_chat_history()[-memory_selection:]  # Carrega as últimas 'memory_selection' interações
 
-    interaction_num = len(chat_history) + 1  # Define o número da interação atual
-
     if fetch_clicked:
         if references_file is None:
             st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas. Saída sempre traduzido para o portugues brasileiro com tom profissional.")
-        st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_num)
+        st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, len(chat_history) + 1)
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
         save_chat_history(user_input, user_prompt, st.session_state.resposta_assistente)
 
     if refine_clicked:
         if st.session_state.resposta_assistente:
-            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_file, chat_history, interaction_num)
+            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_file, chat_history, len(chat_history) + 1)
             save_chat_history(user_input, user_prompt, st.session_state.resposta_refinada)
         else:
             st.warning("Por favor, busque uma resposta antes de refinar.")
 
     if evaluate_clicked:
         if st.session_state.resposta_assistente and st.session_state.descricao_especialista_ideal:
-            st.session_state.rag_resposta = evaluate_response_with_rag(user_input, user_prompt, st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, model_name, temperature, chat_history, interaction_num)
+            st.session_state.rag_resposta = evaluate_response_with_rag(user_input, user_prompt, st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, model_name, temperature, chat_history, len(chat_history) + 1)
             save_chat_history(user_input, user_prompt, st.session_state.rag_resposta)
         else:
             st.warning("Por favor, busque uma resposta e forneça uma descrição do especialista antes de avaliar com RAG.")
