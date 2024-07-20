@@ -324,6 +324,8 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             f"这些子代理共同合作，以改进系统代理提供给用户的最终答案，在代理的描述中记录 seed 和 gen_id。 "
             f"此外，子代理在系统代理中以集成方式运行，通过扩展的提示提供高级和专业的回答。 "
             f"每个子代理在网络处理过程中发挥特定且互补的作用，以实现更高的精度和改进最终回答的质量。 "
+            f"例如，子代理 'AI_ADAPTIVE_AND_CONTEXTUALIZED' 使用先进的机器学习算法来理解和适应上下文的变化，"
+            f"动态集成相关数据。子代理 'RAG_WITH_CONTEXTUAL_INTELLIGENCE' 使用增强生成恢复 (RAG) 技术，"
             f"动态调整最相关的数据及其特征。这种协作方法确保答案准确且最新，"
             f"符合最高的科学和学术标准。 "
             f"以下是专家的详细描述，突出他们的资历和经验：{expert_description}。 "
@@ -337,7 +339,6 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             f"Q 统计和数据解释，以及 Q 指数和数据解释。"
             f"每段保持 4 句话，每句用逗号分隔，始终遵循亚里士多德和苏格拉底的最佳教育实践。"
             f"所有答案必须使用巴西葡萄牙语。"
-
         )
 
         rag_response = get_completion(rag_prompt)
@@ -346,6 +347,22 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
     except Exception as e:
         st.error(f"Ocorreu um erro durante a avaliação com RAG: {e}")
         return ""
+
+# Função para salvar o especialista gerado
+def save_expert(expert_title: str, expert_description: str):
+    new_expert = {
+        "agente": expert_title,
+        "descricao": expert_description
+    }
+    if os.path.exists(FILEPATH):
+        with open(FILEPATH, 'r+') as file:
+            agents = json.load(file)
+            agents.append(new_expert)
+            file.seek(0)
+            json.dump(agents, file, indent=4)
+    else:
+        with open(FILEPATH, 'w') as file:
+            json.dump([new_expert], file, indent=4)
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
@@ -473,21 +490,6 @@ with st.sidebar.expander("Insights do Código"):
 
     Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas. No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais.
     """)
-    #_________________________________________________________________
-
-       
-    # Informações de contato
-    st.sidebar.image("eu.ico", width=80)
-    st.sidebar.write("""
-    Projeto Geomaker + IA 
-    - Professor: Marcelo Claro.
-
-    Contatos: marceloclaro@gmail.com
-
-    Whatsapp: (88)981587145
-
-    Instagram: [https://www.instagram.com/marceloclaro.geomaker/](https://www.instagram.com/marceloclaro.geomaker/)
-    """)
 
 # Carrega o uso da API e plota o histograma
 api_usage = load_api_usage()
@@ -497,5 +499,3 @@ if api_usage:
 # Botão para resetar os gráficos
 if st.sidebar.button("Resetar Gráficos"):
     reset_api_usage()
-
-
