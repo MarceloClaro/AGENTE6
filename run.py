@@ -332,7 +332,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             
             f"每个子代理在网络处理过程中都发挥着特定的互补作用，以实现更高的准确性并提高最终响应的质量，"
             
-            f"例如，‘AI_ADAPTIVE_AND_CONTEXTUALIZED’子代理使用先进的机器学习算法来理解和适应上下文的变化，"
+            f"例如，'AI_ADAPTIVE_AND_CONTEXTUALIZED' 子代理使用先进的机器学习算法来理解和适应上下文的变化，"
             
             f"相关数据的动态集成。‘rag_with_contextual Intelligence’子代理使用恢复增强生成（RAG）技术，"
             
@@ -350,7 +350,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             
             f"考虑专家提供的描述和答案，"
             
-            f"用葡萄牙语分析并提供详细解释："
+            f"用葡萄牙语分析并提供详细解释,"
             
             f"SWOT 分析（优势、劣势、机会、威胁）和数据解释"，
             
