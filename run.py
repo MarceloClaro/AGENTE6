@@ -482,3 +482,19 @@ if api_usage:
 # Botão para resetar os gráficos
 if st.sidebar.button("Resetar Gráficos"):
     reset_api_usage()
+
+#_________________________________________________________________
+
+       
+    # Informações de contato
+    st.sidebar.image("eu.ico", width=80)
+    st.sidebar.write("""
+    Projeto Geomaker + IA 
+    - Professor: Marcelo Claro.
+
+    Contatos: marceloclaro@gmail.com
+
+    Whatsapp: (88)981587145
+
+    Instagram: [https://www.instagram.com/marceloclaro.geomaker/](https://www.instagram.com/marceloclaro.geomaker/)
+    """)
