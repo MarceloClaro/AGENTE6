@@ -473,17 +473,7 @@ with st.sidebar.expander("Insights do Código"):
 
     Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas. No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais.
     """)
-
-# Carrega o uso da API e plota o histograma
-api_usage = load_api_usage()
-if api_usage:
-    plot_api_usage(api_usage)
-
-# Botão para resetar os gráficos
-if st.sidebar.button("Resetar Gráficos"):
-    reset_api_usage()
-
-#_________________________________________________________________
+    #_________________________________________________________________
 
        
     # Informações de contato
@@ -498,3 +488,14 @@ if st.sidebar.button("Resetar Gráficos"):
 
     Instagram: [https://www.instagram.com/marceloclaro.geomaker/](https://www.instagram.com/marceloclaro.geomaker/)
     """)
+
+# Carrega o uso da API e plota o histograma
+api_usage = load_api_usage()
+if api_usage:
+    plot_api_usage(api_usage)
+
+# Botão para resetar os gráficos
+if st.sidebar.button("Resetar Gráficos"):
+    reset_api_usage()
+
+
