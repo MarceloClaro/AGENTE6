@@ -1,19 +1,29 @@
+import subprocess
+import sys
+
+# Instalar pysqlite3-binary se não estiver instalado
+def install_pysqlite3():
+    try:
+        import pysqlite3
+    except ImportError:
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pysqlite3-binary'])
+        import pysqlite3
+
+install_pysqlite3()
+
+# Agora importar as outras bibliotecas
 import json
 import streamlit as st
 import os
 from typing import Tuple
 from groq import Groq
 import time
-
-# Certifique-se de que todas as dependências estão instaladas corretamente
-try:
-    from crewai_tools.tools.scrape_website_tool.scrape_website_tool import ScrapeWebsiteTool
-except ImportError as e:
-    st.error("Erro ao importar ScrapeWebsiteTool: verifique se a biblioteca crewai_tools está instalada corretamente.")
-    raise e
+from crewai_tools.tools.scrape_website_tool.scrape_website_tool import ScrapeWebsiteTool
 
 # Configura o layout da página Streamlit para ser "wide", ocupando toda a largura disponível.
 st.set_page_config(layout="wide")
+
+
 
 # Define o caminho para o arquivo JSON que contém os Agentes.
 FILEPATH = "agents.json"
