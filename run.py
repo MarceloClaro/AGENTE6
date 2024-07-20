@@ -28,6 +28,7 @@ MODEL_MAX_TOKENS = {
 API_KEY_FETCH = "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"
 API_KEY_REFINE = "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"
 API_KEY_EVALUATE = "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"
+API_KEY_FETCH_RESERVE = "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"
 
 # Define uma função para carregar as opções de Agentes a partir do arquivo JSON.
 def load_agent_options() -> list:
@@ -48,11 +49,12 @@ def get_max_tokens(model_name: str) -> int:
     return MODEL_MAX_TOKENS.get(model_name, 4096)
 
 # Função para lidar com erros de limite de taxa
-def handle_rate_limit(error_message: str):
+def handle_rate_limit(error_message: str, api_key: str):
     if 'rate_limit_exceeded' in error_message:
         wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
         st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
         time.sleep(wait_time)  # Espera pelo tempo sugerido antes de tentar novamente
+        return Groq(api_key=API_KEY_FETCH_RESERVE)
     else:
         raise Exception(error_message)  # Relança a exceção se não for um erro de limite de taxa
 
@@ -97,10 +99,11 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
         client = Groq(api_key=API_KEY_FETCH)  # Usa a chave API específica para buscar respostas.
 
         # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
-        def get_completion(prompt: str) -> str:
+        def get_completion(prompt: str, api_key: str) -> str:
             start_time = time.time()
             while True:  # Loop para tentar novamente em caso de erro de limite de taxa
                 try:
+                    client = Groq(api_key=api_key)
                     completion = client.chat.completions.create(
                         messages=[
                             {"role": "system", "content": "Você é um assistente útil."},  # Mensagem do sistema definindo o comportamento do assistente.
@@ -119,7 +122,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                     log_api_usage('fetch', tokens_used, time_taken)
                     return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
                 except Exception as e:
-                    handle_rate_limit(str(e))  # Lida com erros de limite de taxa
+                    client = handle_rate_limit(str(e), API_KEY_FETCH_RESERVE)  # Lida com erros de limite de taxa
 
         if agent_selection == "Escolher um especialista...":
             # Se nenhum especialista específico for selecionado, cria um prompt para determinar o título e descrição do especialista.
@@ -145,7 +148,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 f"准确度为10.0，符合最高的专业、科学和学术标准，每一行都有详细的注释。"
             )
 
-            phase_one_response = get_completion(phase_one_prompt)  # Obtém a resposta para o prompt da fase um.
+            phase_one_response = get_completion(phase_one_prompt, API_KEY_FETCH)  # Obtém a resposta para o prompt da fase um.
             first_period_index = phase_one_response.find(".")  # Encontra o índice do primeiro ponto na resposta.
             expert_title = phase_one_response[:first_period_index].strip()  # Extrai o título do especialista até o primeiro ponto.
             expert_description = phase_one_response[first_period_index + 1:].strip()  # Extrai a descrição do especialista após o primeiro ponto.
@@ -184,7 +187,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             f"始终遵循亚里士多德的最佳教育实践。"
             f"\n\nHistórico do chat:{history_context}"
         )
-        phase_two_response = get_completion(phase_two_prompt)  # Obtém a resposta para o prompt da segunda fase.
+        phase_two_response = get_completion(phase_two_prompt, API_KEY_FETCH)  # Obtém a resposta para o prompt da segunda fase.
 
     except Exception as e:  # Captura qualquer exceção que ocorra durante o processo.
         st.error(f"Ocorreu um erro: {e}")  # Exibe uma mensagem de erro no Streamlit.
@@ -220,7 +223,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                     log_api_usage('refine', tokens_used, time_taken)
                     return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
                 except Exception as e:
-                    handle_rate_limit(str(e))  # Lida com erros de limite de taxa
+                    handle_rate_limit(str(e), API_KEY_REFINE)  # Lida com erros de limite de taxa
 
         # Formata o histórico do chat para incluir nas mensagens do prompt.
         history_context = ""
@@ -289,7 +292,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                     log_api_usage('evaluate', tokens_used, time_taken)
                     return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
                 except Exception as e:
-                    handle_rate_limit(str(e))  # Lida com erros de limite de taxa
+                    handle_rate_limit(str(e), API_KEY_EVALUATE)  # Lida com erros de limite de taxa
 
         # Formata o histórico do chat para incluir nas mensagens do prompt.
         history_context = ""
@@ -400,6 +403,11 @@ def reset_api_usage():
     if os.path.exists(API_USAGE_FILE):
         os.remove(API_USAGE_FILE)
     st.success("Os dados de uso da API foram resetados.")
+
+# Função para exibir o dataframe de uso da API
+def display_api_usage(api_usage):
+    df = pd.DataFrame(api_usage)
+    st.sidebar.write(df)
 
 # Carrega as opções de Agentes a partir do arquivo JSON.
 agent_options = load_agent_options()
@@ -537,6 +545,7 @@ with st.sidebar.expander("Insights do Código"):
 api_usage = load_api_usage()
 if api_usage:
     plot_api_usage(api_usage)
+    display_api_usage(api_usage)
 
 # Botão para resetar os gráficos
 if st.sidebar.button("Resetar Gráficos"):
