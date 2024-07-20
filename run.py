@@ -520,10 +520,7 @@ st.sidebar.title("Controle de Áudio")
 
 # Lista de arquivos MP3
 mp3_files = {
-    "Agente Alan Kay": "AGENTE-4AlanKay1.mp3",
-    "Agente 4": "agente4.mp3",
-    "Agente Alan-Kay": "AGENTEAlan-Kay.mp3",
-    "Instrumental": "ambienteindia.mp3"
+    "Agente Alan Kay": "rag.mp3"
 }
 
 # Controle de seleção de música
