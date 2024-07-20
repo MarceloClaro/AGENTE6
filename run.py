@@ -1,7 +1,7 @@
 import json
 import streamlit as st
 import os
-from typing import Tuple, List
+from typing import Tuple
 from groq import Groq
 import time
 from crewai_tools.tools.scrape_website_tool.scrape_website_tool import ScrapeWebsiteTool
@@ -55,8 +55,8 @@ def save_expert(expert_title: str, expert_description: dict):
         json.dump(agents, file, indent=4)
         file.truncate()
 
-# Função para buscar uma resposta do assistente baseado no modelo Groq, incluindo o histórico e raspagem de sites.
-def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, scraping_tools: List[ScrapeWebsiteTool]) -> Tuple[str, str]:
+# Função para buscar uma resposta do assistente baseado no modelo Groq, incluindo o histórico.
+def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, scraping_tools: list) -> Tuple[str, str]:
     phase_two_response = ""
     expert_title = ""
 
@@ -123,19 +123,11 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                     expert_title = agent_found["agente"]
                     expert_description = agent_found["descricao"]
                 else:
-                    raise ValueError("Especialista selecionado não encontrado no arquivo。")
+                    raise ValueError("Especialista selecionado não encontrado no arquivo.")
 
         history_context = ""
         for entry in chat_history:
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
-
-        # Adiciona o conteúdo raspado ao contexto do histórico
-        for tool in scraping_tools:
-            try:
-                scraped_content = tool.scrape()
-                history_context += f"\nConteúdo raspado de {tool.website_url}:\n{scraped_content}\n"
-            except Exception as e:
-                st.warning(f"Falha ao raspar {tool.website_url}: {e}")
 
         phase_two_prompt = (
             f"输出和响应必须仅翻译成巴西葡萄牙语。"
@@ -214,8 +206,8 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         if not references_file:
             refine_prompt += (
                 f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, "
-                f"mesmo sem o uso de fontes externas。"
-                f"Mantenha um padrão de escrita consistente, com 10 parágrafos, cada parágrafo contendo 4 frases, e cite de acordo com as normas ABNT。"
+                f"mesmo sem o uso de fontes externas. "
+                f"Mantenha um padrão de escrita consistente, com 10 parágrafos, cada parágrafo contendo 4 frases, e cite de acordo com as normas ABNT. "
                 f"Utilize sempre um tom profissional e traduza tudo para o português do Brasil。"
             )
 
@@ -236,7 +228,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é一个assitente útil。"},
+                            {"role": "system", "content": "Você é um assistente útil。"},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -329,28 +321,28 @@ def clear_chat_history(chat_history_file=CHAT_HISTORY_FILE):
 agent_options = load_agent_options()
 
 # Layout da página
-st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo。" - Alan Kay', use_column_width='always', output_format='auto')
+st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo." - Alan Kay', use_column_width='always', output_format='auto')
 st.markdown("<h1 style='text-align: center;'>Agentes Alan Kay</h1>", unsafe_allow_html=True)
 
-st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão。</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão.</h2>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center;'>Descubra como nossa plataforma pode revolucionar a educação。</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Descubra como nossa plataforma pode revolucionar a educação.</h2>", unsafe_allow_html=True)
 
 # Exibe informações sobre os Agentes Alan Kay
-with st.expander("Clique para saber mais sobre os Agentes Alan Kay。"):
-    st.write("1. **Conecte-se instantaneamente com especialistas:** Imagine ter acesso direto a especialistas em diversas áreas do conhecimento, prontos para responder às suas dúvidas e orientar seus estudos e pesquisas。")
-    st.write("2. **Aprendizado personalizado e interativo:** Receba respostas detalhadas e educativas, adaptadas às suas necessidades específicas, tornando o aprendizado mais eficaz e envolvente。")
-    st.write("3. **Suporte acadêmico abrangente:** Desde aulas particulares até orientações para projetos de pesquisa, nossa plataforma oferece um suporte completo para alunos, professores e pesquisadores。")
-    st.write("4. **Avaliação e aprimoramento contínuo:** Utilizando o Rational Agent Generator (RAG), garantimos que as respostas dos especialistas sejam sempre as melhores, mantendo um padrão de excelência em todas as interações。")
-    st.write("5. **Desenvolvimento profissional e acadêmico:** Professores podem encontrar recursos e orientações para melhorar suas práticas de ensino, enquanto pesquisadores podem obter insights valiosos para suas investigações。")
-    st.write("6. **Inovação e tecnologia educacional:** Nossa plataforma incorpora as mais recentes tecnologias para proporcionar uma experiência educacional moderna e eficiente。")
+with st.expander("Clique para saber mais sobre os Agentes Alan Kay."):
+    st.write("1. **Conecte-se instantaneamente com especialistas:** Imagine ter acesso direto a especialistas em diversas áreas do conhecimento, prontos para responder às suas dúvidas e orientar seus estudos e pesquisas.")
+    st.write("2. **Aprendizado personalizado e interativo:** Receba respostas detalhadas e educativas, adaptadas às suas necessidades específicas, tornando o aprendizado mais eficaz e envolvente.")
+    st.write("3. **Suporte acadêmico abrangente:** Desde aulas particulares até orientações para projetos de pesquisa, nossa plataforma oferece um suporte completo para alunos, professores e pesquisadores.")
+    st.write("4. **Avaliação e aprimoramento contínuo:** Utilizando o Rational Agent Generator (RAG), garantimos que as respostas dos especialistas sejam sempre as melhores, mantendo um padrão de excelência em todas as interações.")
+    st.write("5. **Desenvolvimento profissional e acadêmico:** Professores podem encontrar recursos e orientações para melhorar suas práticas de ensino, enquanto pesquisadores podem obter insights valiosos para suas investigações.")
+    st.write("6. **Inovação e tecnologia educacional:** Nossa plataforma incorpora as mais recentes tecnologias para proporcionar uma experiência educacional moderna e eficiente.")
     st.image("fluxograma agente 4.png")
 
 # Seleção de memória do chat
 memory_selection = st.selectbox("Selecione a quantidade de interações para lembrar:", options=[5, 10, 15, 25, 50, 100])
 
 # Caixa de entrada para solicitação do usuário
-st.write("Digite sua solicitação para que ela seja respondida pelo especialista ideal。")
+st.write("Digite sua solicitação para que ela seja respondida pelo especialista ideal.")
 col1, col2 = st.columns(2)
 
 with col1:
