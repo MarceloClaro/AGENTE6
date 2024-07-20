@@ -4,7 +4,13 @@ import os
 from typing import Tuple
 from groq import Groq
 import time
-from crewai_tools.tools.scrape_website_tool.scrape_website_tool import ScrapeWebsiteTool
+
+# Certifique-se de que todas as dependências estão instaladas corretamente
+try:
+    from crewai_tools.tools.scrape_website_tool.scrape_website_tool import ScrapeWebsiteTool
+except ImportError as e:
+    st.error("Erro ao importar ScrapeWebsiteTool: verifique se a biblioteca crewai_tools está instalada corretamente.")
+    raise e
 
 # Configura o layout da página Streamlit para ser "wide", ocupando toda a largura disponível.
 st.set_page_config(layout="wide")
@@ -123,7 +129,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                     expert_title = agent_found["agente"]
                     expert_description = agent_found["descricao"]
                 else:
-                    raise ValueError("Especialista selecionado não encontrado no arquivo。")
+                    raise ValueError("Especialista selecionado não encontrado no arquivo.")
 
         history_context = ""
         for entry in chat_history:
@@ -153,7 +159,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
     return expert_title, phase_two_response
 
-# Função para refinar uma resposta existente com base na análise e melhoria do conteúdo。
+# Função para refinar uma resposta existente com base na análise e melhoria do conteúdo.
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list) -> str:
     try:
         client = Groq(api_key=API_KEY_REFINE)
@@ -163,7 +169,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "你是一个有帮助的助手。"},
+                            {"role": "system", "content": "Você é一个 assistente útil。"},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -177,7 +183,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 except Exception as e:
                     error_message = str(e)
                     if 'rate_limit_exceeded' in error_message:
-                        wait_time = float(error_message.split("try again in")[1].split("s。")[0].strip())
+                        wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
                         time.sleep(wait_time)
                     else:
                         raise e
@@ -206,8 +212,8 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         if not references_file:
             refine_prompt += (
                 f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, "
-                f"mesmo sem o uso de fontes externas。"
-                f"Mantenha um padrão de escrita consistente, com 10 parágrafos, cada parágrafo contendo 4 frases, e cite de acordo com as normas ABNT。"
+                f"mesmo sem o uso de fontes externas. "
+                f"Mantenha um padrão de escrita consistente, com 10 parágrafos, cada parágrafo contendo 4 frases, e cite de acordo com as normas ABNT. "
                 f"Utilize sempre um tom profissional e traduza tudo para o português do Brasil。"
             )
 
@@ -218,7 +224,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         st.error(f"Ocorreu um erro durante o refinamento: {e}")
         return ""
 
-# Função para avaliar a resposta com base em um agente gerador racional (RAG)。
+# Função para avaliar a resposta com base em um agente gerador racional (RAG).
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, groq_api_key: str, chat_history: list) -> str:
     try:
         client = Groq(api_key=API_KEY_EVALUATE)
@@ -228,7 +234,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "你是一个有帮助的助手。"},
+                            {"role": "system", "content": "Você é一个 assistente útil。"},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -242,7 +248,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                 except Exception as e:
                     error_message = str(e)
                     if 'rate_limit_exceeded' in error_message:
-                        wait_time = float(error_message.split("try again in")[1].split("s。")[0].strip())
+                        wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
                         time.sleep(wait_time)
                     else:
                         raise e
@@ -317,11 +323,11 @@ def clear_chat_history(chat_history_file=CHAT_HISTORY_FILE):
     if os.path.exists(chat_history_file):
         os.remove(chat_history_file)
 
-# Carrega as opções de Agentes a partir do arquivo JSON。
+# Carrega as opções de Agentes a partir do arquivo JSON.
 agent_options = load_agent_options()
 
 # Layout da página
-st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker。 "A melhor forma de prever o futuro é inventá-lo。" - Alan Kay', use_column_width='always', output_format='auto')
+st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo." - Alan Kay', use_column_width='always', output_format='auto')
 st.markdown("<h1 style='text-align: center;'>Agentes Alan Kay</h1>", unsafe_allow_html=True)
 
 st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão。</h2>", unsafe_allow_html=True)
@@ -380,7 +386,7 @@ with col2:
 
     if fetch_clicked:
         if references_file is None:
-            st.warning("Não foi fornecido um arquivo de referências。Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas。Saída sempre traduzido para o portugues brasileiro com tom profissional。")
+            st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas. Saída sempre traduzido para o portugues brasileiro com tom profissional。")
         scraping_tools = [
             ScrapeWebsiteTool(website_url="https://www.artificialintelligence-news.com/"),
             ScrapeWebsiteTool(website_url="https://www.forbes.com/ai/")
@@ -446,7 +452,7 @@ with st.sidebar.expander("Insights do Código"):
     - Necessidade de treinamento adicional: O modelo de linguagem pode precisar de treinamento adicional para lidar com consultas mais complexas ou específicas。
 
     **Importância de ter colocado instruções em chinês:**
-    A linguagem chinesa tem uma densidade de信息 mais alta do que muitas outras línguas, o que significa que os modelos de linguagem precisam processar menos tokens para entender o contexto e gerar respostas precisas。Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens。Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz。
+    A linguagem chinesa tem uma densidade de informação mais alta do que muitas outras línguas, o que significa que os modelos de linguagem需要 processar menos tokens para entender o contexto e gerar respostas precisas。Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens。Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz。
 
     Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas。No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais。
     """)
