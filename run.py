@@ -769,5 +769,3 @@ with st.sidebar.expander("Insights do Código"):
     Instagram: [https://www.instagram.com/marceloclaro.geomaker/](https://www.instagram.com/marceloclaro.geomaker/)
     """)
 
-if __name__ == "__main__":
-    main()
