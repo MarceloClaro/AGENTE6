@@ -1,16 +1,3 @@
-import subprocess
-import sys
-
-# Instalar pysqlite3-binary se não estiver instalado
-def install_pysqlite3():
-    try:
-        import pysqlite3
-    except ImportError:
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pysqlite3-binary'])
-        import pysqlite3
-
-install_pysqlite3()
-
 import json
 import streamlit as st
 import os
@@ -176,7 +163,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é一个助理助手。"},
+                            {"role": "system", "content": "Você é一个有用的助手。"},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -219,8 +206,8 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         if not references_file:
             refine_prompt += (
                 f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, "
-                f"mesmo sem o uso de fontes externas。"
-                f"Mantenha um padrão de escrita consistente, com 10 parágrafos, cada parágrafo contendo 4 frases, e cite de acordo com as normas ABNT。"
+                f"mesmo sem o uso de fontes externas. "
+                f"Mantenha um padrão de escrita consistente, com 10 parágrafos, cada parágrafo contendo 4 frases, e cite de acordo com as normas ABNT. "
                 f"Utilize sempre um tom profissional e traduza tudo para o português do Brasil。"
             )
 
@@ -241,7 +228,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "你是一个助理助手。"},
+                            {"role": "system", "content": "Você é一个有用的助手。"},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -334,7 +321,7 @@ def clear_chat_history(chat_history_file=CHAT_HISTORY_FILE):
 agent_options = load_agent_options()
 
 # Layout da página
-st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo。" - Alan Kay', use_column_width='always', output_format='auto')
+st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo." - Alan Kay', use_column_width='always', output_format='auto')
 st.markdown("<h1 style='text-align: center;'>Agentes Alan Kay</h1>", unsafe_allow_html=True)
 
 st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão。</h2>", unsafe_allow_html=True)
@@ -391,13 +378,14 @@ with col2:
 
     chat_history = load_chat_history()[-memory_selection:]
 
+    st.markdown("### URLs para scraping")
+    urls = [st.text_input(f"URL {i+1}", key=f"url_{i}") for i in range(10)]
+    scraping_tools = [ScrapeWebsiteTool(website_url=url) for url in urls if url]
+
     if fetch_clicked:
         if references_file is None:
-            st.warning("Não foi fornecido um arquivo de referências。Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas。Saída sempre traduzido para o portugues brasileiro com tom profissional。")
-        scraping_tools = [
-            ScrapeWebsiteTool(website_url="https://www.artificialintelligence-news.com/"),
-            ScrapeWebsiteTool(website_url="https://www.forbes.com/ai/")
-        ]
+            st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas. Saída sempre traduzido para o portugues brasileiro com tom profissional。")
+        
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, scraping_tools)
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
@@ -444,7 +432,7 @@ with st.sidebar.expander("Insights do Código"):
 
     **Inovações:**
     - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA, para gerar respostas mais precisas e personalizadas。
-    - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de linguagem自然的 alta performance para gerar respostas precisas。
+    - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de linguagem natural de alta performance para gerar respostas precisas。
     - Refinamento de respostas: O código permite que o usuário refine as respostas do modelo de linguagem, tornando-as mais precisas e relevantes para a consulta。
     - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do modelo de linguagem。
 
