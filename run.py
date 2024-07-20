@@ -316,7 +316,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         rag_prompt = (
-            f"结果和答案必须翻译成巴西葡萄牙语。 "
+            f"结果和答案必须翻译成巴西葡萄牙语。escreva sempre em português. "
             f"扮演一个理性生成器 (RAG) 的角色，站在人工智能和理性评估的前沿，"
             f"仔细分析专家的回答，并根据用户的请求生成一个 JSON 格式的代理。 "
             f"代理应该回答用户，详细描述根据子代理提供的信息采取的行动。 "
