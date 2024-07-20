@@ -111,11 +111,11 @@
                 "Relatórios_Detalhados": "生成详细的评估报告，帮助学校和学生了解能力水平。"
             },
             "capacidade_autodidatica": {
-                "descricao": "Gerar informações autodidáticas detalhadas sobre diversas áreas de conhecimento.",
-                "prompts_negativos": "Proibir a criação de ficção, invenção de informações, alucinações e uso de superlativos.",
+                "descricao": "Gerar informações autodidáticas detalhadas sobre diversas áreas de conhecimento。",
+                "prompts_negativos": "Proibir a criação de ficção, invenção de informações, alucinações e uso de superlativos。",
                 "subagentes": {
-                    "evolutivo_genetico": "Subagente que utiliza algoritmos genéticos para otimização de conteúdos educacionais.",
-                    "autogen": "Subagente que aplica automatos celulares sofisticados, Python e machine learning para desenvolvimento avançado de materiais de ensino."
+                    "evolutivo_genetico": "Subagente que utiliza algoritmos genéticos para otimização de conteúdos educacionais。",
+                    "autogen": "Subagente que aplica automatos celulares sofisticados, Python e machine learning para desenvolvimento avançado de materiais de ensino。"
                 },
                 "conteudo": [
                     {
@@ -131,45 +131,7 @@
                         "paragrafo_10": "Análise de dados avançada aplica técnicas estatísticas e de machine learning para explorar grandes conjuntos de dados, envolve a identificação de padrões e insights significativos, análise avançada é usada em pesquisa acadêmica e indústria, contribui para a tomada de decisões informadas e inovação, é essencial para a análise precisa e detalhada。"
                     }
                 ]
-            },
-            "agentes_especializados": [
-                {
-                    "agente": "GeoPro",
-                    "descricao": {
-                        "objetivo_geral": "为地理研究和学习提供高级支持，重点在空间数据分析和地理信息系统（GIS）。",
-                        "características_tecnológicas": {
-                            "SIG_Integrado": "集成地理信息系统以进行详细的空间分析。",
-                            "Mapeamento_Digital": "便于创建和解释数字地图。",
-                            "Análise_Espacial": "提供空间数据分析工具。",
-                            "Modelagem_Geográfica": "支持地理建模以实现多种目的。",
-                            "Banco_de_Dados_Geográficos": "维护一个包含地理信息的最新数据库。",
-                            "Simulação_Ambiental": "进行环境模拟以预测影响。"
-                        },
-                        "capacidade_autodidatica": {
-                            "descricao": "Gerar informações autodidáticas detalhadas sobre geografia e sistemas de informação geográfica.",
-                            "prompts_negativos": "Proibir a criação de ficção, invenção de informações, alucinações e uso de superlativos。",
-                            "subagentes": {
-                                "evolutivo_genetico": "Subagente que utiliza algoritmos genéticos para otimização de análises geográficas。",
-                                "autogen": "Subagente que aplica automatos celulares sofisticados, Python e machine learning para desenvolvimento avançado de simulações geográficas。"
-                            },
-                            "conteudo": [
-                                {
-                                    "paragrafo_1": "SIG Integrado permite a análise detalhada de dados espaciais, inclui a utilização de mapas e imagens de satélite, SIG é usado para planejamento urbano e gestão ambiental, contribui para a visualização e interpretação de dados geográficos, é uma ferramenta essencial na geografia moderna。",
-                                    "paragrafo_2": "Mapeamento digital facilita a criação e interpretação de mapas digitais, inclui a utilização de software como ArcGIS e QGIS, mapeamento digital é usado para visualização e análise de dados espaciais, contribui para a compreensão de padrões geográficos, é uma habilidade essencial para geógrafos e planejadores urbanos。",
-                                    "paragrafo_3": "Análise espacial envolve a análise de dados geográficos para identificar padrões e tendências, inclui técnicas como interpolação e análise de vizinhança, análise espacial é usada para estudar fenômenos como a distribuição de recursos naturais e a dinâmica populacional, contribui para a tomada de decisões informadas, é uma ferramenta valiosa na pesquisa geográfica。",
-                                    "paragrafo_4": "Modelagem geográfica utiliza modelos matemáticos para simular processos geográficos, inclui a análise de cenários e previsões, modelagem geográfica é usada para estudar o impacto de mudanças ambientais e planejar intervenções, contribui para a gestão sustentável dos recursos naturais, é uma área de pesquisa em crescimento na geografia。",
-                                    "paragrafo_5": "Banco de dados geográficos mantém informações atualizadas sobre diversas características geográficas, inclui dados sobre clima, relevo, vegetação e uso da terra, banco de dados é usado para pesquisa e planejamento, contribui para a acessibilidade e compartilhamento de informações geográficas, é uma ferramenta essencial para geógrafos e pesquisadores。",
-                                    "paragrafo_6": "Simulação ambiental envolve a criação de modelos para prever impactos ambientais, inclui a análise de mudanças climáticas e desastres naturais, simulação ambiental é usada para planejar medidas de mitigação e adaptação, contribui para a proteção do meio ambiente e a sustentabilidade, é uma área de pesquisa crucial na geografia。",
-                                    "paragrafo_7": "SIG Integrado inclui a utilização de tecnologias como GPS e sensores remotos, essas tecnologias permitem a coleta precisa de dados espaciais, SIG é usado para monitorar mudanças no ambiente e planejar intervenções, contribui para a gestão eficiente dos recursos naturais, é uma ferramenta indispensável para geógrafos。",
-                                    "paragrafo_8": "Mapeamento digital utiliza técnicas de geoprocessamento para criar mapas detalhados, inclui a análise de dados espaciais e a criação de camadas temáticas, mapeamento digital é usado para visualizar e analisar dados geográficos, contribui para a tomada de decisões informadas, é uma habilidade essencial na geografia moderna。",
-                                    "paragrafo_9": "Análise espacial aplica estatísticas e algoritmos para estudar dados geográficos, inclui a utilização de técnicas como análise de cluster e análise de regressão espacial, análise espacial é usada para identificar padrões e tendências em dados geográficos, contribui para a pesquisa e planejamento, é uma ferramenta valiosa para geógrafos e planejadores。",
-                                    "paragrafo_10": "Modelagem geográfica inclui a criação de modelos tridimensionais de paisagens e estruturas geológicas, esses modelos são usados para simular processos naturais e prever mudanças, modelagem geográfica é usada para planejar intervenções e estudar impactos ambientais, contribui para a gestão sustentável dos recursos naturais, é uma área de pesquisa dinâmica na geografia。"
-                                }
-                            ]
-                        }
-                    }
-                }
-            ]
+            }
         }
     },
     {
