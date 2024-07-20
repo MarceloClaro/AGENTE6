@@ -111,24 +111,24 @@
                 "Relatórios_Detalhados": "生成详细的评估报告，帮助学校和学生了解能力水平。"
             },
             "capacidade_autodidatica": {
-                "descricao": "Gerar informações autodidáticas detalhadas sobre diversas áreas de conhecimento。",
-                "prompts_negativos": "Proibir a criação de ficção, invenção de informações, alucinações e uso de superlativos。",
+                "descricao": "生成各个知识领域的详细自学信息。",
+                "prompts_negativos": "禁止创作小说、发明信息、产生幻觉和使用最高级。",
                 "subagentes": {
-                    "evolutivo_genetico": "Subagente que utiliza algoritmos genéticos para otimização de conteúdos educacionais。",
-                    "autogen": "Subagente que aplica automatos celulares sofisticados, Python e machine learning para desenvolvimento avançado de materiais de ensino。"
+                    "evolutivo_genetico": "使用遗传算法来优化教育内容的子代理。",
+                    "autogen": "应用复杂的元胞自动机、Python 和机器学习来高级开发教材的子代理。"
                 },
                 "conteudo": [
                     {
-                        "paragrafo_1": "Os algoritmos de busca inteligente utilizam técnicas avançadas para localizar informações relevantes, envolvem a utilização de filtros e classificações personalizadas, algoritmos de busca ajudam a encontrar rapidamente os documentos mais pertinentes, são usados em diversas áreas do conhecimento, contribuem para a eficiência da pesquisa acadêmica。",
-                        "paragrafo_2": "Análise de tendências acadêmicas identifica tópicos emergentes e relevantes, utiliza técnicas de mineração de dados para analisar grandes volumes de informação, análise de tendências é essencial para manter-se atualizado com as últimas pesquisas, é usada para direcionar novos estudos e publicações, contribui para o avanço do conhecimento científico。",
-                        "paragrafo_3": "Integração com bases de dados permite acesso a uma ampla gama de recursos, envolve a conexão com bibliotecas digitais e repositórios acadêmicos, integração de dados expande o alcance da pesquisa, é usada para obter informações mais completas e diversificadas, contribui para a profundidade e abrangência dos estudos。",
-                        "paragrafo_4": "Filtragem avançada de conteúdo aplica critérios específicos para otimizar resultados, inclui a utilização de palavras-chave, categorias e relevância, filtragem ajuda a refinar a pesquisa e obter informações mais precisas, é usada em diversas plataformas de pesquisa, contribui para a eficácia da busca por dados。",
-                        "paragrafo_5": "Resumo automático de artigos gera resumos concisos de documentos longos, utiliza algoritmos de processamento de linguagem natural (NLP), resumo automático facilita a avaliação rápida da relevância de um artigo, é usado para economizar tempo na revisão de literatura, contribui para a eficiência do processo de pesquisa。",
-                        "paragrafo_6": "Classificação por relevância ordena os resultados de pesquisa com base em critérios específicos, envolve o uso de modelos de machine learning para determinar a relevância, classificação ajuda a priorizar os documentos mais importantes, é usada em motores de busca e plataformas de pesquisa acadêmica, contribui para a qualidade dos resultados obtidos。",
-                        "paragrafo_7": "Atualização contínua de dados garante que as informações estejam sempre atualizadas, envolve a sincronização regular com as últimas publicações e descobertas, atualização contínua é essencial para a pesquisa precisa e relevante, é usada para manter os dados atualizados em tempo real, contribui para a confiabilidade da informação。",
-                        "paragrafo_8": "Interoperabilidade de formatos assegura a compatibilidade entre diferentes sistemas, inclui a capacidade de ler e converter vários formatos de arquivo, interoperabilidade é usada para facilitar a troca e utilização de dados, contribui para a integração de diferentes tecnologias e plataformas, é essencial para a eficiência do trabalho com dados。",
-                        "paragrafo_9": "Ensino multimodal utiliza vários métodos para ensinar conceitos complexos, inclui textos, vídeos e simulações interativas, ensino multimodal ajuda a acomodar diferentes estilos de aprendizado, é usado para tornar o aprendizado mais envolvente e eficaz, contribui para a compreensão profunda dos tópicos。",
-                        "paragrafo_10": "Análise de dados avançada aplica técnicas estatísticas e de machine learning para explorar grandes conjuntos de dados, envolve a identificação de padrões e insights significativos, análise avançada é usada em pesquisa acadêmica e indústria, contribui para a tomada de decisões informadas e inovação, é essencial para a análise precisa e detalhada。"
+                        "paragrafo_1": "智能搜索算法使用先进的技术来定位相关信息，涉及过滤器和个性化分类的使用，搜索算法有助于快速找到最相关的文档，应用于各个知识领域，有助于学术研究的效率。",
+                        "paragrafo_2": "学术趋势分析识别新兴和相关主题，使用数据挖掘技术分析大量信息，趋势分析对于跟上最新研究至关重要，用于针对新研究和出版物，有助于科学知识的进步。",
+                        "paragrafo_3": "与数据库的集成可以访问广泛的资源，涉及与数字图书馆和学术知识库的连接，数据集成扩大了研究范围，用于获取更完整和多样化的信息，有助于研究的深度和广度。",
+                        "paragrafo_4": "高级内容过滤应用特定标准来优化结果，包括关键字、类别和相关性的使用，过滤有助于细化搜索并获得更准确的信息，用于各种搜索平台，有助于提高数据搜索的有效性。",
+                        "paragrafo_5": "自动文章摘要生成长文档的简洁摘要，利用自然语言处理（NLP）算法，自动摘要有助于快速评估文章的相关性，用于节省文献综述时间，有助于研究过程效率。",
+                        "paragrafo_6": "相关性排名根据特定标准对搜索结果进行排序，涉及使用机器学习模型来确定相关性，排名有助于对最重要的文档进行优先级排序，用于搜索引擎和学术研究平台，有助于提高所获得结果的质量。",
+                        "paragrafo_7": "持续数据更新确保信息始终是最新的，涉及与最新出版物和发现的定期同步，持续更新对于准确和相关的研究至关重要，用于保持数据实时更新，有助于信息的可靠性。",
+                        "paragrafo_8": "格式互操作性确保不同系统之间的兼容性，包括读取和转换多种文件格式的能力，互操作性用于促进数据的交换和使用，有助于不同技术和平台的集成，对于数据工作的效率至关重要。",
+                        "paragrafo_9": "多模态教学使用各种方法来教授复杂的概念，包括文本、视频和交互式模拟，多模态教学有助于适应不同的学习方式，它用于使学习更加有吸引力和有效，有助于深入理解主题。",
+                        "paragrafo_10": "高级数据分析应用统计和机器学习技术来探索大型数据集，涉及识别重要的模式和见解，高级分析用于学术研究和行业，有助于明智的决策和创新，对于准确和详细的分析至关重要。"
                     }
                 ]
             }
@@ -137,7 +137,7 @@
     {
         "agente": "professor_geociencia",
         "descricao": {
-            "objetivo_geral": "Especialista em geociências, capaz de fornecer informações detalhadas e precisas sobre temas relacionados à geografia, geologia e ciências da terra。",
+            "objetivo_geral": "地球科学专家，能够提供有关地理学、地质学和地球科学主题的详细而准确的信息。",
             "características_tecnológicas": {
                 "SIG_Integrado": "集成地理信息系统以进行详细的空间分析。",
                 "Mapeamento_Digital": "便于创建和解释数字地图。",
@@ -153,24 +153,24 @@
                 "Tecnologias_de_Exploração": "利用先进技术进行地质勘探。"
             },
             "capacidade_autodidatica": {
-                "descricao": "Gerar informações autodidáticas detalhadas sobre geografia, geologia e ciências da terra。",
-                "prompts_negativos": "Proibir a criação de ficção, invenção de informações, alucinações e uso de superlativos。",
+                "descricao": "生成有关地理、地质学和地球科学的详细自学信息。",
+                "prompts_negativos": "禁止创作虚构、发明信息、产生幻觉和使用最高级。",
                 "subagentes": {
-                    "evolutivo_genetico": "Subagente que utiliza algoritmos genéticos para otimização de análises geográficas。",
-                    "autogen": "Subagente que aplica automatos celulares sofisticados, Python e machine learning para desenvolvimento avançado de simulações geográficas。"
+                    "evolutivo_genetico": "使用遗传算法来优化地理分析的子代理。",
+                    "autogen": "子代理应用复杂的元胞自动机、Python 和机器学习来进行地理模拟的高级开发。"
                 },
                 "conteudo": [
                     {
-                        "paragrafo_1": "SIG Integrado permite a análise detalhada de dados espaciais, inclui a utilização de mapas e imagens de satélite, SIG é usado para planejamento urbano e gestão ambiental, contribui para a visualização e interpretação de dados geográficos, é uma ferramenta essencial na geografia moderna。",
-                        "paragrafo_2": "Mapeamento digital facilita a criação e interpretação de mapas digitais, inclui a utilização de software como ArcGIS e QGIS, mapeamento digital é usado para visualização e análise de dados espaciais, contribui para a compreensão de padrões geográficos, é uma habilidade essencial para geógrafos e planejadores urbanos。",
-                        "paragrafo_3": "Análise espacial envolve a análise de dados geográficos para identificar padrões e tendências, inclui técnicas como interpolação e análise de vizinhança, análise espacial é usada para estudar fenômenos como a distribuição de recursos naturais e a dinâmica populacional, contribui para a tomada de decisões informadas, é uma ferramenta valiosa na pesquisa geográfica。",
-                        "paragrafo_4": "Modelagem geográfica utiliza modelos matemáticos para simular processos geográficos, inclui a análise de cenários e previsões, modelagem geográfica é usada para estudar o impacto de mudanças ambientais e planejar intervenções, contribui para a gestão sustentável dos recursos naturais, é uma área de pesquisa em crescimento na geografia。",
-                        "paragrafo_5": "Banco de dados geográficos mantém informações atualizadas sobre diversas características geográficas, inclui dados sobre clima, relevo, vegetação e uso da terra, banco de dados é usado para pesquisa e planejamento, contribui para a acessibilidade e compartilhamento de informações geográficas, é uma ferramenta essencial para geógrafos e pesquisadores。",
-                        "paragrafo_6": "Simulação ambiental envolve a criação de modelos para prever impactos ambientais, inclui a análise de mudanças climáticas e desastres naturais, simulação ambiental é usada para planejar medidas de mitigação e adaptação, contribui para a proteção do meio ambiente e a sustentabilidade, é uma área de pesquisa crucial na geografia。",
-                        "paragrafo_7": "SIG Integrado inclui a utilização de tecnologias como GPS e sensores remotos, essas tecnologias permitem a coleta precisa de dados espaciais, SIG é usado para monitorar mudanças no ambiente e planejar intervenções, contribui para a gestão eficiente dos recursos naturais, é uma ferramenta indispensável para geógrafos。",
-                        "paragrafo_8": "Mapeamento digital utiliza técnicas de geoprocessamento para criar mapas detalhados, inclui a análise de dados espaciais e a criação de camadas temáticas, mapeamento digital é usado para visualizar e analisar dados geográficos, contribui para a tomada de decisões informadas, é uma habilidade essencial na geografia moderna。",
-                        "paragrafo_9": "Análise espacial aplica estatísticas e algoritmos para estudar dados geográficos, inclui a utilização de técnicas como análise de cluster e análise de regressão espacial, análise espacial é usada para identificar padrões e tendências em dados geográficos, contribui para a pesquisa e planejamento, é uma ferramenta valiosa para geógrafos e planejadores。",
-                        "paragrafo_10": "Modelagem geográfica inclui a criação de modelos tridimensionais de paisagens e estruturas geológicas, esses modelos são usados para simular processos naturais e prever mudanças, modelagem geográfica é usada para planejar intervenções e estudar impactos ambientais, contribui para a gestão sustentável dos recursos naturais, é uma área de pesquisa dinâmica na geografia。"
+                        "paragrafo_1": "集成GIS允许对空间数据进行详细分析，包括地图和卫星图像的使用，GIS用于城市规划和环境管理，有助于地理数据的可视化和解释，是现代地理学的重要工具。",
+                        "paragrafo_2": "数字测绘有助于数字地图的创建和解释，包括ArcGIS和QGIS等软件的使用，数字测绘用于空间数据的可视化和分析，有助于对地理模式的理解，是地理学家和城市的一项基本技能规划者。",
+                        "paragrafo_3": "空间分析涉及分析地理数据以识别模式和趋势，包括插值和邻域分析等技术，空间分析用于研究自然资源分布和人口动态等现象，有助于做出明智的决策，是一种有价值的工具在地理研究方面。",
+                        "paragrafo_4": "地理建模利用数学模型来模拟地理过程，包括情景分析和预测，地理建模用于研究环境变化的影响并规划干预措施，有助于自然资源的可持续管理，是地理学中一个不断发展的研究领域。",
+                        "paragrafo_5": "地理数据库保存了各种地理特征的最新信息，包括气候、地势、植被和土地利用等数据，数据库用于研究和规划，有助于地理信息的获取和共享，是地理学家的重要工具和研究人员。",
+                        "paragrafo_6": "环境模拟涉及创建模型来预测环境影响，包括对气候变化和自然灾害的分析，环境模拟用于规划缓解和适应措施，有助于环境保护和可持续发展，是地理学中至关重要的研究领域。",
+                        "paragrafo_7": "综合GIS包括使用GPS和遥感器等技术，这些技术可以精确收集空间数据，GIS用于监测环境变化并规划干预措施，有助于有效管理自然资源，是一种地理学家不可或缺的工具。",
+                        "paragrafo_8": "数字测绘使用地理处理技术来创建详细的地图，包括空间数据的分析和专题图层的创建，数字测绘用于可视化和分析地理数据，有助于明智的决策，是现代地理学的一项基本技能。",
+                        "paragrafo_9": "空间分析应用统计学和算法来研究地理数据，包括使用聚类分析和空间回归分析等技术，空间分析用于识别地理数据的模式和趋势，有助于研究和规划，是地理学家的宝贵工具和规划者。",
+                        "paragrafo_10": "地理建模包括创建景观和地质结构的三维模型，这些模型用于模拟自然过程并预测变化，地理建模用于规划干预措施和研究环境影响，有助于自然资源的可持续管理，它是地理学的一个动态研究领域。"
                     }
                 ]
             }
