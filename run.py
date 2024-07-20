@@ -1,3 +1,18 @@
+import requests
+from bs4 import BeautifulSoup
+
+class ScrapeWebsiteTool:
+    def __init__(self, website_url: str):
+        self.website_url = website_url
+
+    def scrape(self):
+        try:
+            response = requests.get(self.website_url)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            return soup.prettify()
+        except requests.exceptions.RequestException as e:
+            return f"Erro ao raspar o website: {e}"
 import json
 import streamlit as st
 import os
@@ -443,7 +458,7 @@ with st.sidebar.expander("Insights do Código"):
 
     **Inovações:**
     - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA, para gerar respostas mais precisas e personalizadas。
-    - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de linguagem自然de alta performance para gerar respostas precisas。
+    - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de语言自然de alta performance para gerar respostas precisas。
     - Refinamento de respostas: O código permite que o usuário refine as respostas do modelo de linguagem, tornando-as mais precisas e relevantes para a consulta。
     - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do modelo de linguagem。
 
