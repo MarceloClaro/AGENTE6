@@ -9,3 +9,5 @@ os
 json
 typing
 datetime
+requests
+beautifulsoup4
