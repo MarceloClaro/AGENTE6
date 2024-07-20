@@ -4,6 +4,7 @@ import os  # Importa o módulo os para interagir com o sistema operacional, como
 from typing import Tuple  # Importa Tuple da biblioteca typing para fornecer tipos de dados mais precisos para funções.
 from groq import Groq  # Importa a biblioteca Groq, possivelmente para uma função não especificada neste código.
 import time  # Importa o módulo time para adicionar atrasos entre as tentativas de solicitação da API
+import matplotlib.pyplot as plt  # Importa o matplotlib para criar gráficos
 
 # Configura o layout da página Streamlit para ser "wide", ocupando toda a largura disponível.
 st.set_page_config(layout="wide")
@@ -11,6 +12,7 @@ st.set_page_config(layout="wide")
 # Define o caminho para o arquivo JSON que contém os Agentes.
 FILEPATH = "agents.json"
 CHAT_HISTORY_FILE = 'chat_history.json'
+API_USAGE_FILE = 'api_usage.json'  # Arquivo para armazenar o uso da API
 
 # Define um dicionário que mapeia nomes de modelos para o número máximo de tokens que cada modelo suporta.
 MODEL_MAX_TOKENS = {
@@ -24,7 +26,6 @@ MODEL_MAX_TOKENS = {
 API_KEY_FETCH = "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"
 API_KEY_REFINE = "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"
 API_KEY_EVALUATE = "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"
-API_KEY_TRANSLATE = "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"
 
 # Define uma função para carregar as opções de Agentes a partir do arquivo JSON.
 def load_agent_options() -> list:
@@ -44,43 +45,18 @@ def get_max_tokens(model_name: str) -> int:
     # Retorna o número máximo de tokens para o modelo fornecido, ou 4096 se o modelo não estiver no dicionário.
     return MODEL_MAX_TOKENS.get(model_name, 4096)
 
-# Função para lidar com limites de taxa
-def handle_rate_limit(e: Exception):
-    error_message = str(e)
+# Função para lidar com erros de limite de taxa
+def handle_rate_limit(error_message: str):
     if 'rate_limit_exceeded' in error_message:
         wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
+        st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
         time.sleep(wait_time)  # Espera pelo tempo sugerido antes de tentar novamente
     else:
-        raise e  # Se o erro não for de limite de taxa, relança a exceção
-
-# Função para traduzir texto usando a API de tradução via prompts
-def translate_text(text: str, source_language: str, target_language: str) -> str:
-    client = Groq(api_key=API_KEY_TRANSLATE)
-    try:
-        prompt = (
-            f"Traduza o seguinte texto de {source_language} para {target_language}:\n"
-            f"Texto: {text}"
-        )
-        completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": "Você é um assistente de tradução."},
-                {"role": "user", "content": prompt},
-            ],
-            model='text-davinci-003',
-            temperature=0.5,
-            max_tokens=500,
-            top_p=1,
-            stop=None,
-            stream=False
-        )
-        return completion.choices[0].message.content.strip()
-    except Exception as e:
-        st.error(f"Erro durante a tradução: {e}")
-        return text
+        raise Exception(error_message)  # Relança a exceção se não for um erro de limite de taxa
 
 # Define uma função para recarregar a página do Streamlit.
 def refresh_page():
-    st.experimental_rerun()  # Recarrega a aplicação Streamlit.
+    st.experimental_rerun()  # Recarrega a aplicação Streamlit
 
 # Define uma função para salvar um novo especialista no arquivo JSON.
 def save_expert(expert_title: str, expert_description: dict):
@@ -93,6 +69,23 @@ def save_expert(expert_title: str, expert_description: dict):
         json.dump(agents, file, indent=4)  # Grava a lista de Agentes de volta no arquivo com indentação para melhor legibilidade.
         file.truncate()  # Remove qualquer conteúdo restante do arquivo após a nova escrita para evitar dados obsoletos.
 
+# Função para registrar o uso da API
+def log_api_usage(action: str, tokens_used: int, time_taken: float):
+    entry = {
+        'action': action,
+        'tokens_used': tokens_used,
+        'time_taken': time_taken,
+    }
+    if os.path.exists(API_USAGE_FILE):
+        with open(API_USAGE_FILE, 'r+') as file:
+            api_usage = json.load(file)
+            api_usage.append(entry)
+            file.seek(0)
+            json.dump(api_usage, file, indent=4)
+    else:
+        with open(API_USAGE_FILE, 'w') as file:
+            json.dump([entry], file, indent=4)
+
 # Função para buscar uma resposta do assistente baseado no modelo Groq, incluindo o histórico.
 def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list) -> Tuple[str, str]:
     phase_two_response = ""  # Inicializa a variável para armazenar a resposta da segunda fase.
@@ -103,6 +96,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
         # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
+            start_time = time.time()
             while True:  # Loop para tentar novamente em caso de erro de limite de taxa
                 try:
                     completion = client.chat.completions.create(
@@ -117,9 +111,13 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                         stop=None,  # Sem tokens de parada específicos.
                         stream=False  # Desabilita o streaming de respostas.
                     )
+                    end_time = time.time()
+                    tokens_used = completion.usage.total_tokens
+                    time_taken = end_time - start_time
+                    log_api_usage('fetch', tokens_used, time_taken)
                     return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
                 except Exception as e:
-                    handle_rate_limit(e)
+                    handle_rate_limit(str(e))  # Lida com erros de limite de taxa
 
         if agent_selection == "Escolher um especialista...":
             # Se nenhum especialista específico for selecionado, cria um prompt para determinar o título e descrição do especialista.
@@ -199,6 +197,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 
         # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
+            start_time = time.time()
             while True:  # Loop para tentar novamente em caso de erro de limite de taxa
                 try:
                     completion = client.chat.completions.create(
@@ -213,9 +212,13 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                         stop=None,  # Sem tokens de parada específicos.
                         stream=False  # Desabilita o streaming de respostas.
                     )
+                    end_time = time.time()
+                    tokens_used = completion.usage.total_tokens
+                    time_taken = end_time - start_time
+                    log_api_usage('refine', tokens_used, time_taken)
                     return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
                 except Exception as e:
-                    handle_rate_limit(e)
+                    handle_rate_limit(str(e))  # Lida com erros de limite de taxa
 
         # Formata o histórico do chat para incluir nas mensagens do prompt.
         history_context = ""
@@ -232,9 +235,9 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"有必要以科学严谨的态度关注并探讨每个方面。"
             f"因此，我将概述需要考虑和调查的主要要素，提供基于证据的详细分析，"
             f"避免偏见，并根据需要引用参考文献：{phase_two_response}。"
-            f"最终目标是提供一个完整且令人满意的回答，符合最高的 acadêmicos e profissionais padrões，"
+            f"最终目标是提供一个完整且令人满意的回答，符合最高的学术 e profissional标准，"
             f"满足所提出问题的具体需求。"
-            f"确保以'markdown'格式呈现回答，并在 cada linha 中添加详细注释。"
+            f"确保以'markdown'格式呈现回答，并在每行中添加详细注释。"
             f"保持写作 padrão em 10 parágrafos，每个 parágrafo contendo 4 frases, "
             f"e sempre seguindo as melhores práticas educacionais de Aristóteles."
             f"\n\nHistórico do chat:{history_context}"
@@ -263,6 +266,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
 
         # Define uma função interna para obter a conclusão/completar um prompt usando a API Groq.
         def get_completion(prompt: str) -> str:
+            start_time = time.time()
             while True:  # Loop para tentar novamente em caso de erro de limite de taxa
                 try:
                     completion = client.chat.completions.create(
@@ -277,9 +281,13 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                         stop=None,  # Sem tokens de parada específicos.
                         stream=False  # Desabilita o streaming de respostas.
                     )
+                    end_time = time.time()
+                    tokens_used = completion.usage.total_tokens
+                    time_taken = end_time - start_time
+                    log_api_usage('evaluate', tokens_used, time_taken)
                     return completion.choices[0].message.content  # Retorna o conteúdo da primeira escolha da resposta.
                 except Exception as e:
-                    handle_rate_limit(e)
+                    handle_rate_limit(str(e))  # Lida com erros de limite de taxa
 
         # Formata o histórico do chat para incluir nas mensagens do prompt.
         history_context = ""
@@ -353,6 +361,40 @@ def clear_chat_history(chat_history_file=CHAT_HISTORY_FILE):
     if os.path.exists(chat_history_file):
         os.remove(chat_history_file)
 
+# Função para carregar o uso da API
+def load_api_usage():
+    if os.path.exists(API_USAGE_FILE):
+        with open(API_USAGE_FILE, 'r') as file:
+            api_usage = json.load(file)
+        return api_usage
+    return []
+
+# Função para plotar o histograma do uso da API
+def plot_api_usage(api_usage):
+    fetch_tokens = [entry['tokens_used'] for entry in api_usage if entry['action'] == 'fetch']
+    refine_tokens = [entry['tokens_used'] for entry in api_usage if entry['action'] == 'refine']
+    evaluate_tokens = [entry['tokens_used'] for entry in api_usage if entry['action'] == 'evaluate']
+
+    fetch_times = [entry['time_taken'] for entry in api_usage if entry['action'] == 'fetch']
+    refine_times = [entry['time_taken'] for entry in api_usage if entry['action'] == 'refine']
+    evaluate_times = [entry['time_taken'] for entry in api_usage if entry['action'] == 'evaluate']
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+
+    ax1.hist([fetch_tokens, refine_tokens, evaluate_tokens], bins=20, label=['Fetch', 'Refine', 'Evaluate'], color=['blue', 'green', 'red'])
+    ax1.set_title('Token Usage per API Call')
+    ax1.set_xlabel('Tokens')
+    ax1.set_ylabel('Frequency')
+    ax1.legend()
+
+    ax2.hist([fetch_times, refine_times, evaluate_times], bins=20, label=['Fetch', 'Refine', 'Evaluate'], color=['blue', 'green', 'red'])
+    ax2.set_title('Time Taken per API Call')
+    ax2.set_xlabel('Time (s)')
+    ax2.set_ylabel('Frequency')
+    ax2.legend()
+
+    st.sidebar.pyplot(fig)
+
 # Carrega as opções de Agentes a partir do arquivo JSON.
 agent_options = load_agent_options()
 
@@ -417,25 +459,21 @@ with col2:
     if fetch_clicked:
         if references_file is None:
             st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas. Saída sempre traduzido para o portugues brasileiro com tom profissional.")
-        user_input_cn = translate_text(user_input, "pt", "zh")  # Traduz o input do usuário para chinês
-        user_prompt_cn = translate_text(user_prompt, "pt", "zh")  # Traduz o prompt do usuário para chinês
-        st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input_cn, user_prompt_cn, model_name, temperature, agent_selection, chat_history)
-        st.session_state.resposta_original = translate_text(st.session_state.resposta_assistente, "zh", "pt")  # Traduz a resposta do assistente para português
+        st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history)
+        st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
-        save_chat_history(user_input, user_prompt, st.session_state.resposta_original)
+        save_chat_history(user_input, user_prompt, st.session_state.resposta_assistente)
 
     if refine_clicked:
         if st.session_state.resposta_assistente:
-            phase_two_response_cn = translate_text(st.session_state.resposta_assistente, "pt", "zh")  # Traduz a resposta da fase dois para chinês
-            st.session_state.resposta_refinada = translate_text(refine_response(st.session_state.descricao_especialista_ideal, phase_two_response_cn, user_input, user_prompt, model_name, temperature, references_file, chat_history), "zh", "pt")  # Traduz a resposta refinada para português
+            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_file, chat_history)
             save_chat_history(user_input, user_prompt, st.session_state.resposta_refinada)
         else:
             st.warning("Por favor, busque uma resposta antes de refinar.")
 
     if evaluate_clicked:
         if st.session_state.resposta_assistente and st.session_state.descricao_especialista_ideal:
-            assistant_response_cn = translate_text(st.session_state.resposta_assistente, "pt", "zh")  # Traduz a resposta do assistente para chinês
-            st.session_state.rag_resposta = translate_text(evaluate_response_with_rag(user_input, user_prompt, st.session_state.descricao_especialista_ideal, assistant_response_cn, model_name, temperature, chat_history), "zh", "pt")  # Traduz a resposta avaliada para português
+            st.session_state.rag_resposta = evaluate_response_with_rag(user_input, user_prompt, st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, model_name, temperature, chat_history)
             save_chat_history(user_input, user_prompt, st.session_state.rag_resposta)
         else:
             st.warning("Por favor, busque uma resposta e forneça uma descrição do especialista antes de avaliar com RAG.")
@@ -488,3 +526,8 @@ with st.sidebar.expander("Insights do Código"):
 
     Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas. No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais.
     """)
+
+# Carrega o uso da API e plota o histograma
+api_usage = load_api_usage()
+if api_usage:
+    plot_api_usage(api_usage)
