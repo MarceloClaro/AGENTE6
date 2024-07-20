@@ -4,6 +4,8 @@ import os  # Importa o módulo os para interagir com o sistema operacional, como
 from typing import Tuple  # Importa Tuple da biblioteca typing para fornecer tipos de dados mais precisos para funções.
 from groq import Groq  # Importa a biblioteca Groq, possivelmente para uma função não especificada neste código.
 import time  # Importa o módulo time para adicionar atrasos entre as tentativas de solicitação da API
+import pandas as pd  # Importa o Pandas para manipulação de dados
+import seaborn as sns  # Importa o Seaborn para visualização de dados
 import matplotlib.pyplot as plt  # Importa o matplotlib para criar gráficos
 
 # Configura o layout da página Streamlit para ser "wide", ocupando toda a largura disponível.
@@ -235,11 +237,11 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"有必要以科学严谨的态度关注并探讨每个方面。"
             f"因此，我将概述需要考虑和调查的主要要素，提供基于证据的详细分析，"
             f"避免偏见，并根据需要引用参考文献：{phase_two_response}。"
-            f"最终目标是 fornecer uma resposta completa e satisfatória, de acordo com os mais altos padrões acadêmicos e profissionais, "
-            f"atendendo às necessidades específicas do problema apresentado."
-            f"Certifique-se de apresentar a resposta em formato 'markdown', com explicações detalhadas em cada linha."
-            f"Manter um padrão de escrita com 10 parágrafos, cada parágrafo contendo 4 frases, "
-            f"sempre seguindo as melhores práticas educacionais de Aristóteles."
+            f"最终目标是提供一个完整且令人满意的回答，符合最高的 acadêmico e profissional padrão，"
+            f"满足所提出问题的具体需求。"
+            f"确保以'markdown'格式呈现回答，并在每行中添加详细注释。"
+            f"保持写作 padrão em 10 parágrafos，每个 parágrafo contendo 4 frases, "
+            f"e sempre seguindo as melhores práticas educacionais de Aristóteles."
             f"\n\nHistórico do chat:{history_context}"
         )
 
@@ -371,29 +373,33 @@ def load_api_usage():
 
 # Função para plotar o histograma do uso da API
 def plot_api_usage(api_usage):
-    fetch_tokens = [entry['tokens_used'] for entry in api_usage if entry['action'] == 'fetch']
-    refine_tokens = [entry['tokens_used'] for entry in api_usage if entry['action'] == 'refine']
-    evaluate_tokens = [entry['tokens_used'] for entry in api_usage if entry['action'] == 'evaluate']
-
-    fetch_times = [entry['time_taken'] for entry in api_usage if entry['action'] == 'fetch']
-    refine_times = [entry['time_taken'] for entry in api_usage if entry['action'] == 'refine']
-    evaluate_times = [entry['time_taken'] for entry in api_usage if entry['action'] == 'evaluate']
+    df = pd.DataFrame(api_usage)
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
-    ax1.hist([fetch_tokens, refine_tokens, evaluate_tokens], bins=20, label=['Fetch', 'Refine', 'Evaluate'], color=['blue', 'green', 'red'])
+    sns.histplot(df[df['action'] == 'fetch']['tokens_used'], bins=20, color='blue', label='Fetch', ax=ax1, kde=True)
+    sns.histplot(df[df['action'] == 'refine']['tokens_used'], bins=20, color='green', label='Refine', ax=ax1, kde=True)
+    sns.histplot(df[df['action'] == 'evaluate']['tokens_used'], bins=20, color='red', label='Evaluate', ax=ax1, kde=True)
     ax1.set_title('Uso de Tokens por Chamada de API')
     ax1.set_xlabel('Tokens')
     ax1.set_ylabel('Frequência')
     ax1.legend()
 
-    ax2.hist([fetch_times, refine_times, evaluate_times], bins=20, label=['Fetch', 'Refine', 'Evaluate'], color=['blue', 'green', 'red'])
-    ax2.set_title('Tempo de Resposta por Chamada de API')
+    sns.histplot(df[df['action'] == 'fetch']['time_taken'], bins=20, color='blue', label='Fetch', ax=ax2, kde=True)
+    sns.histplot(df[df['action'] == 'refine']['time_taken'], bins=20, color='green', label='Refine', ax=ax2, kde=True)
+    sns.histplot(df[df['action'] == 'evaluate']['time_taken'], bins=20, color='red', label='Evaluate', ax=ax2, kde=True)
+    ax2.set_title('Tempo por Chamada de API')
     ax2.set_xlabel('Tempo (s)')
     ax2.set_ylabel('Frequência')
     ax2.legend()
 
     st.sidebar.pyplot(fig)
+
+# Função para resetar o uso da API
+def reset_api_usage():
+    if os.path.exists(API_USAGE_FILE):
+        os.remove(API_USAGE_FILE)
+    st.success("Os dados de uso da API foram resetados.")
 
 # Carrega as opções de Agentes a partir do arquivo JSON.
 agent_options = load_agent_options()
@@ -531,3 +537,7 @@ with st.sidebar.expander("Insights do Código"):
 api_usage = load_api_usage()
 if api_usage:
     plot_api_usage(api_usage)
+
+# Botão para resetar os gráficos
+if st.sidebar.button("Resetar Gráficos"):
+    reset_api_usage()
