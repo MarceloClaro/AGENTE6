@@ -1,3 +1,19 @@
+import requests
+from bs4 import BeautifulSoup
+
+class ScrapeWebsiteTool:
+    def __init__(self, website_url: str):
+        self.website_url = website_url
+
+    def scrape(self):
+        try:
+            response = requests.get(self.website_url)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            return soup.prettify()
+        except requests.exceptions.RequestException as e:
+            return f"Erro ao raspar o website: {e}"
+
 import json
 import streamlit as st
 import os
