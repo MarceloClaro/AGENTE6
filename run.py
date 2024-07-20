@@ -53,16 +53,27 @@ def handle_rate_limit(e: Exception):
     else:
         raise e  # Se o erro não for de limite de taxa, relança a exceção
 
-# Função para traduzir texto usando a API de tradução
+# Função para traduzir texto usando a API de tradução via prompts
 def translate_text(text: str, source_language: str, target_language: str) -> str:
     client = Groq(api_key=API_KEY_TRANSLATE)
     try:
-        translation = client.translation.translate_text(
-            text=text,
-            source_language=source_language,
-            target_language=target_language
+        prompt = (
+            f"Traduza o seguinte texto de {source_language} para {target_language}:\n"
+            f"Texto: {text}"
         )
-        return translation.translated_text
+        completion = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "Você é um assistente de tradução."},
+                {"role": "user", "content": prompt},
+            ],
+            model='text-davinci-003',
+            temperature=0.5,
+            max_tokens=500,
+            top_p=1,
+            stop=None,
+            stream=False
+        )
+        return completion.choices[0].message.content.strip()
     except Exception as e:
         st.error(f"Erro durante a tradução: {e}")
         return text
