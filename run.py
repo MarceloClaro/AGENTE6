@@ -126,6 +126,10 @@ def load_api_usage():
 def plot_api_usage(api_usage):
     df = pd.DataFrame(api_usage)
 
+    if 'action' not in df.columns:
+        st.error("A coluna 'action' não foi encontrada no dataframe de uso da API.")
+        return
+
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
     sns.histplot(df[df['action'] == 'fetch']['tokens_used'], bins=20, color='blue', label='Fetch', ax=ax1, kde=True)
@@ -145,6 +149,10 @@ def plot_api_usage(api_usage):
     ax2.legend()
 
     st.sidebar.pyplot(fig)
+
+    # Adicionar visualização do DataFrame no sidebar
+    st.sidebar.markdown("### Uso da API - DataFrame")
+    st.sidebar.dataframe(df)
 
 # Função para resetar o uso da API
 def reset_api_usage():
