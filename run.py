@@ -1,18 +1,3 @@
-import requests
-from bs4 import BeautifulSoup
-
-class ScrapeWebsiteTool:
-    def __init__(self, website_url: str):
-        self.website_url = website_url
-
-    def scrape(self):
-        try:
-            response = requests.get(self.website_url)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
-            return soup.prettify()
-        except requests.exceptions.RequestException as e:
-            return f"Erro ao raspar o website: {e}"
 import json
 import streamlit as st
 import os
@@ -347,7 +332,7 @@ def clear_chat_history(chat_history_file=CHAT_HISTORY_FILE):
 agent_options = load_agent_options()
 
 # Layout da página
-st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo." - Alan Kay', use_column_width='always', output_format='auto')
+st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo。" - Alan Kay', use_column_width='always', output_format='auto')
 st.markdown("<h1 style='text-align: center;'>Agentes Alan Kay</h1>", unsafe_allow_html=True)
 
 st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão。</h2>", unsafe_allow_html=True)
