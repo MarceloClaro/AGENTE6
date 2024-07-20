@@ -1,12 +1,5 @@
-streamlit==1.36.0
-groq==0.5.0
-toml==0.10.2
-pydub==0.25.1
-crewai==0.41.0
-crewai_tools==0.4.26
-os
-json
-typing
-datetime
+streamlit
 requests
 beautifulsoup4
+groq 
+crewai
