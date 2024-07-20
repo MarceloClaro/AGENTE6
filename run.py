@@ -219,7 +219,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         phase_two_prompt = (
-            f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
+            f"{expert_title}, responda em português obrigatoriamente a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
             f"\n\nHistórico do chat:{history_context}"
         )
         phase_two_response = get_completion(phase_two_prompt)
@@ -265,7 +265,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         refine_prompt = (
-            f"{expert_title}, refine a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
+            f"{expert_title}, refine em português obrigatoriamente, a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
             f"\n\nHistórico do chat:{history_context}"
         )
 
@@ -338,7 +338,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             f"风险矩阵，ANOVA（方差分析）和数据解释，"
             f"Q 统计和数据解释，以及 Q 指数和数据解释。"
             f"每段保持 4 句话，每句用逗号分隔，始终遵循亚里士多德和苏格拉底的最佳教育实践。"
-            f"所有答案必须使用巴西葡萄牙语。"
+            f"所有答案必须使用巴西葡萄牙语。Responda em português obrigatoriamente."
         )
 
         rag_response = get_completion(rag_prompt)
