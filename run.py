@@ -4,13 +4,7 @@ import os
 from typing import Tuple
 from groq import Groq
 import time
-
-# Certifique-se de que todas as dependências estão instaladas corretamente
-try:
-    from crewai_tools.tools.scrape_website_tool.scrape_website_tool import ScrapeWebsiteTool
-except ImportError as e:
-    st.error("Erro ao importar ScrapeWebsiteTool: verifique se a biblioteca crewai_tools está instalada corretamente.")
-    raise e
+from crewai_tools.tools.scrape_website_tool.scrape_website_tool import ScrapeWebsiteTool
 
 # Configura o layout da página Streamlit para ser "wide", ocupando toda a largura disponível.
 st.set_page_config(layout="wide")
@@ -169,7 +163,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é一个 assistente útil。"},
+                            {"role": "system", "content": "Você é um assistente útil。"},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -234,7 +228,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é一个 assistente útil。"},
+                            {"role": "system", "content": "Você é um assistente útil。"},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -330,25 +324,25 @@ agent_options = load_agent_options()
 st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo." - Alan Kay', use_column_width='always', output_format='auto')
 st.markdown("<h1 style='text-align: center;'>Agentes Alan Kay</h1>", unsafe_allow_html=True)
 
-st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão。</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão.</h2>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center;'>Descubra como nossa plataforma pode revolucionar a educação。</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Descubra como nossa plataforma pode revolucionar a educação.</h2>", unsafe_allow_html=True)
 
 # Exibe informações sobre os Agentes Alan Kay
-with st.expander("Clique para saber mais sobre os Agentes Alan Kay。"):
-    st.write("1. **Conecte-se instantaneamente com especialistas:** Imagine ter acesso direto a especialistas em diversas áreas do conhecimento, prontos para responder às suas dúvidas e orientar seus estudos e pesquisas。")
-    st.write("2. **Aprendizado personalizado e interativo:** Receba respostas detalhadas e educativas, adaptadas às suas necessidades específicas, tornando o aprendizado mais eficaz e envolvente。")
-    st.write("3. **Suporte acadêmico abrangente:** Desde aulas particulares até orientações para projetos de pesquisa, nossa plataforma oferece um suporte completo para alunos, professores e pesquisadores。")
-    st.write("4. **Avaliação e aprimoramento contínuo:** Utilizando o Rational Agent Generator (RAG), garantimos que as respostas dos especialistas sejam sempre as melhores, mantendo um padrão de excelência em todas as interações。")
-    st.write("5. **Desenvolvimento profissional e acadêmico:** Professores podem encontrar recursos e orientações para melhorar suas práticas de ensino, enquanto pesquisadores podem obter insights valiosos para suas investigações。")
-    st.write("6. **Inovação e tecnologia educacional:** Nossa plataforma incorpora as mais recentes tecnologias para proporcionar uma experiência educacional moderna e eficiente。")
+with st.expander("Clique para saber mais sobre os Agentes Alan Kay."):
+    st.write("1. **Conecte-se instantaneamente com especialistas:** Imagine ter acesso direto a especialistas em diversas áreas do conhecimento, prontos para responder às suas dúvidas e orientar seus estudos e pesquisas.")
+    st.write("2. **Aprendizado personalizado e interativo:** Receba respostas detalhadas e educativas, adaptadas às suas necessidades específicas, tornando o aprendizado mais eficaz e envolvente.")
+    st.write("3. **Suporte acadêmico abrangente:** Desde aulas particulares até orientações para projetos de pesquisa, nossa plataforma oferece um suporte completo para alunos, professores e pesquisadores.")
+    st.write("4. **Avaliação e aprimoramento contínuo:** Utilizando o Rational Agent Generator (RAG), garantimos que as respostas dos especialistas sejam sempre as melhores, mantendo um padrão de excelência em todas as interações.")
+    st.write("5. **Desenvolvimento profissional e acadêmico:** Professores podem encontrar recursos e orientações para melhorar suas práticas de ensino, enquanto pesquisadores podem obter insights valiosos para suas investigações.")
+    st.write("6. **Inovação e tecnologia educacional:** Nossa plataforma incorpora as mais recentes tecnologias para proporcionar uma experiência educacional moderna e eficiente.")
     st.image("fluxograma agente 4.png")
 
 # Seleção de memória do chat
 memory_selection = st.selectbox("Selecione a quantidade de interações para lembrar:", options=[5, 10, 15, 25, 50, 100])
 
 # Caixa de entrada para solicitação do usuário
-st.write("Digite sua solicitação para que ela seja respondida pelo especialista ideal。")
+st.write("Digite sua solicitação para que ela seja respondida pelo especialista ideal.")
 col1, col2 = st.columns(2)
 
 with col1:
@@ -367,6 +361,9 @@ with col1:
     refresh_clicked = st.button("Apagar")
 
     references_file = st.file_uploader("Upload do arquivo JSON com referências (opcional)", type="json", key="arquivo_referencias")
+    
+    # Input de URLs para scraping
+    scraping_urls = [st.text_input(f"URL {i+1}:", key=f"url_{i}") for i in range(10)]
 
 with col2:
     if 'resposta_assistente' not in st.session_state:
@@ -387,10 +384,8 @@ with col2:
     if fetch_clicked:
         if references_file is None:
             st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas. Saída sempre traduzido para o portugues brasileiro com tom profissional。")
-        scraping_tools = [
-            ScrapeWebsiteTool(website_url="https://www.artificialintelligence-news.com/"),
-            ScrapeWebsiteTool(website_url="https://www.forbes.com/ai/")
-        ]
+        
+        scraping_tools = [ScrapeWebsiteTool(website_url=url) for url in scraping_urls if url]
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, scraping_tools)
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
@@ -452,7 +447,7 @@ with st.sidebar.expander("Insights do Código"):
     - Necessidade de treinamento adicional: O modelo de linguagem pode precisar de treinamento adicional para lidar com consultas mais complexas ou específicas。
 
     **Importância de ter colocado instruções em chinês:**
-    A linguagem chinesa tem uma densidade de informação mais alta do que muitas outras línguas, o que significa que os modelos de linguagem需要 processar menos tokens para entender o contexto e gerar respostas precisas。Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens。Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz。
+    A linguagem chinesa tem uma densidade de informação mais alta do que muitas outras línguas, o que significa que os modelos de linguagem需要处理 menostokens para entender o contexto e gerar respostas precisas。Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens。Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz。
 
     Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas。No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais。
     """)
