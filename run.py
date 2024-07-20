@@ -1,10 +1,16 @@
 import json
 import streamlit as st
 import os
-from typing import Tuple, List
+from typing import Tuple
 from groq import Groq
 import time
-from crewai_tools.tools.scrape_website_tool.scrape_website_tool import ScrapeWebsiteTool
+
+# Certifique-se de que todas as dependências estão instaladas corretamente
+try:
+    from crewai_tools.tools.scrape_website_tool.scrape_website_tool import ScrapeWebsiteTool
+except ImportError as e:
+    st.error("Erro ao importar ScrapeWebsiteTool: verifique se a biblioteca crewai_tools está instalada corretamente.")
+    raise e
 
 # Configura o layout da página Streamlit para ser "wide", ocupando toda a largura disponível.
 st.set_page_config(layout="wide")
@@ -55,8 +61,8 @@ def save_expert(expert_title: str, expert_description: dict):
         json.dump(agents, file, indent=4)
         file.truncate()
 
-# Função para buscar uma resposta do assistente baseado no modelo Groq, incluindo o histórico e raspagem de sites.
-def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, scraping_tools: List[ScrapeWebsiteTool]) -> Tuple[str, str]:
+# Função para buscar uma resposta do assistente baseado no modelo Groq, incluindo o histórico.
+def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, scraping_tools: list) -> Tuple[str, str]:
     phase_two_response = ""
     expert_title = ""
 
@@ -123,19 +129,11 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                     expert_title = agent_found["agente"]
                     expert_description = agent_found["descricao"]
                 else:
-                    raise ValueError("Especialista selecionado não encontrado no arquivo。")
+                    raise ValueError("Especialista selecionado não encontrado no arquivo.")
 
         history_context = ""
         for entry in chat_history:
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
-
-        # Adiciona o conteúdo raspado ao contexto do histórico
-        for tool in scraping_tools:
-            try:
-                scraped_content = tool.scrape()
-                history_context += f"\nConteúdo raspado de {tool.website_url}:\n{scraped_content}\n"
-            except Exception as e:
-                st.warning(f"Falha ao raspar {tool.website_url}: {e}")
 
         phase_two_prompt = (
             f"输出和响应必须仅翻译成巴西葡萄牙语。"
@@ -171,7 +169,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é um assistente útil。"},
+                            {"role": "system", "content": "Você é一个 assistente útil。"},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -214,8 +212,8 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         if not references_file:
             refine_prompt += (
                 f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, "
-                f"mesmo sem o uso de fontes externas。"
-                f"Mantenha um padrão de escrita consistente, com 10 parágrafos, cada parágrafo contendo 4 frases, e cite de acordo com as normas ABNT。"
+                f"mesmo sem o uso de fontes externas. "
+                f"Mantenha um padrão de escrita consistente, com 10 parágrafos, cada parágrafo contendo 4 frases, e cite de acordo com as normas ABNT. "
                 f"Utilize sempre um tom profissional e traduza tudo para o português do Brasil。"
             )
 
@@ -236,7 +234,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é一个assitente útil。"},
+                            {"role": "system", "content": "Você é一个 assistente útil。"},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -329,7 +327,7 @@ def clear_chat_history(chat_history_file=CHAT_HISTORY_FILE):
 agent_options = load_agent_options()
 
 # Layout da página
-st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo。" - Alan Kay', use_column_width='always', output_format='auto')
+st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo." - Alan Kay', use_column_width='always', output_format='auto')
 st.markdown("<h1 style='text-align: center;'>Agentes Alan Kay</h1>", unsafe_allow_html=True)
 
 st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão。</h2>", unsafe_allow_html=True)
@@ -369,9 +367,6 @@ with col1:
     refresh_clicked = st.button("Apagar")
 
     references_file = st.file_uploader("Upload do arquivo JSON com referências (opcional)", type="json", key="arquivo_referencias")
-    
-    # Input de URLs para scraping
-    scraping_urls = [st.text_input(f"URL {i+1}:", key=f"url_{i}") for i in range(10)]
 
 with col2:
     if 'resposta_assistente' not in st.session_state:
@@ -392,8 +387,10 @@ with col2:
     if fetch_clicked:
         if references_file is None:
             st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas. Saída sempre traduzido para o portugues brasileiro com tom profissional。")
-        
-        scraping_tools = [ScrapeWebsiteTool(website_url=url) for url in scraping_urls if url]
+        scraping_tools = [
+            ScrapeWebsiteTool(website_url="https://www.artificialintelligence-news.com/"),
+            ScrapeWebsiteTool(website_url="https://www.forbes.com/ai/")
+        ]
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, scraping_tools)
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
@@ -455,7 +452,7 @@ with st.sidebar.expander("Insights do Código"):
     - Necessidade de treinamento adicional: O modelo de linguagem pode precisar de treinamento adicional para lidar com consultas mais complexas ou específicas。
 
     **Importância de ter colocado instruções em chinês:**
-    A linguagem chinesa tem uma densidade de informação mais alta do que muitas outras línguas, o que significa que os modelos de linguagem需要处理 menostokens para entender o contexto e gerar respostas precisas。Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens。Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz。
+    A linguagem chinesa tem uma densidade de informação mais alta do que muitas outras línguas, o que significa que os modelos de linguagem需要 processar menos tokens para entender o contexto e gerar respostas precisas。Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens。Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz。
 
     Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas。No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais。
     """)
