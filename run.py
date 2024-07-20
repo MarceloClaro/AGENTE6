@@ -53,7 +53,7 @@ def get_max_tokens(model_name: str) -> int:
     return MODEL_MAX_TOKENS.get(model_name, 4096)
 
 # Função para registrar o uso da API
-def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_taken: float, user_input: str, user_prompt: str, api_response: str, agent: str = "", description: str = ""):
+def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_taken: float, user_input: str, user_prompt: str, api_response: str, agent_used: str, agent_description: str):
     entry = {
         'action': action,
         'interaction_number': interaction_number,
@@ -62,8 +62,8 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
         'user_input': user_input,
         'user_prompt': user_prompt,
         'api_response': api_response,
-        'agent': agent,
-        'description': description
+        'agent_used': agent_used,
+        'agent_description': agent_description
     }
     if os.path.exists(API_USAGE_FILE):
         with open(API_USAGE_FILE, 'r+') as file:
@@ -166,11 +166,12 @@ def reset_api_usage():
 def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, interaction_number: int) -> Tuple[str, str]:
     phase_two_response = ""
     expert_title = ""
+    expert_description = ""
+    start_time = time.time()
     try:
         client = Groq(api_key=get_api_key('fetch'))
 
         def get_completion(prompt: str) -> str:
-            start_time = time.time()
             while True:
                 try:
                     completion = client.chat.completions.create(
@@ -189,7 +190,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                     tokens_used = completion.usage.total_tokens
                     time_taken = end_time - start_time
                     api_response = completion.choices[0].message.content
-                    log_api_usage('fetch', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, agent_selection, "")
+                    log_api_usage('fetch', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, expert_description)
                     return api_response
                 except Exception as e:
                     handle_rate_limit(str(e), 'fetch')
@@ -222,7 +223,6 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             f"\n\nHistórico do chat:{history_context}"
         )
         phase_two_response = get_completion(phase_two_prompt)
-        log_api_usage('fetch', interaction_number, len(phase_two_prompt.split()), time.time() - start_time, user_input, user_prompt, phase_two_response, agent_selection, expert_description)
 
     except Exception as e:
         st.error(f"Ocorreu um erro: {e}")
@@ -232,11 +232,11 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
 # Função para refinar resposta
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list, interaction_number: int) -> str:
+    start_time = time.time()
     try:
         client = Groq(api_key=get_api_key('refine'))
 
         def get_completion(prompt: str) -> str:
-            start_time = time.time()
             while True:
                 try:
                     completion = client.chat.completions.create(
@@ -275,7 +275,6 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             )
 
         refined_response = get_completion(refine_prompt)
-        log_api_usage('refine', interaction_number, len(refine_prompt.split()), time.time() - start_time, user_input, user_prompt, refined_response, expert_title, "")
         return refined_response
 
     except Exception as e:
@@ -284,11 +283,11 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 
 # Função para avaliar resposta com RAG
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
+    start_time = time.time()
     try:
         client = Groq(api_key=get_api_key('evaluate'))
 
         def get_completion(prompt: str) -> str:
-            start_time = time.time()
             while True:
                 try:
                     completion = client.chat.completions.create(
@@ -307,7 +306,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                     tokens_used = completion.usage.total_tokens
                     time_taken = end_time - start_time
                     api_response = completion.choices[0].message.content
-                    log_api_usage('evaluate', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, "", expert_description)
+                    log_api_usage('evaluate', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, expert_description)
                     return api_response
                 except Exception as e:
                     handle_rate_limit(str(e), 'evaluate')
@@ -346,7 +345,6 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
         )
 
         rag_response = get_completion(rag_prompt)  # Obtém a resposta avaliada a partir do prompt detalhado.
-        log_api_usage('evaluate', interaction_number, len(rag_prompt.split()), time.time() - start_time, user_input, user_prompt, rag_response, "", expert_description)
         return rag_response  # Retorna a resposta avaliada.
 
     except Exception as e:  # Captura qualquer exceção que ocorra durante o processo de avaliação com RAG.
