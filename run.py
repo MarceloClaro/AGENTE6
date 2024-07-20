@@ -451,4 +451,3 @@ if api_usage:
 # Botão para resetar os gráficos
 if st.sidebar.button("Resetar Gráficos"):
     reset_api_usage()
-
