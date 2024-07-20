@@ -1,25 +1,9 @@
-import requests
-from bs4 import BeautifulSoup
-
-class ScrapeWebsiteTool:
-    def __init__(self, website_url: str):
-        self.website_url = website_url
-
-    def scrape(self):
-        try:
-            response = requests.get(self.website_url)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
-            return soup.prettify()
-        except requests.exceptions.RequestException as e:
-            return f"Erro ao raspar o website: {e}"
-
 import json
 import streamlit as st
 import os
 from typing import Tuple, List
-from datetime import datetime
-from crewai import Agent, Task, Crew, Process
+from groq import Groq
+import time
 from crewai_tools.tools.scrape_website_tool.scrape_website_tool import ScrapeWebsiteTool
 
 # Configura o layout da página Streamlit para ser "wide", ocupando toda a largura disponível.
@@ -71,13 +55,12 @@ def save_expert(expert_title: str, expert_description: dict):
         json.dump(agents, file, indent=4)
         file.truncate()
 
-# Função para buscar uma resposta do assistente baseado no modelo Groq, incluindo o histórico.
+# Função para buscar uma resposta do assistente baseado no modelo Groq, incluindo o histórico e raspagem de sites.
 def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, scraping_tools: List[ScrapeWebsiteTool]) -> Tuple[str, str]:
     phase_two_response = ""
     expert_title = ""
 
     try:
-        from groq import Groq
         client = Groq(api_key=API_KEY_FETCH)
 
         def get_completion(prompt: str) -> str:
@@ -142,17 +125,17 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 else:
                     raise ValueError("Especialista selecionado não encontrado no arquivo。")
 
-        # Raspagem de websites
-        for tool in scraping_tools:
-            try:
-                result = tool.scrape()
-                st.write(f"Conteúdo raspado de {tool.website_url}: {result}")
-            except Exception as scrape_error:
-                st.warning(f"Falha ao raspar {tool.website_url}: {scrape_error}")
-
         history_context = ""
         for entry in chat_history:
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
+
+        # Adiciona o conteúdo raspado ao contexto do histórico
+        for tool in scraping_tools:
+            try:
+                scraped_content = tool.scrape()
+                history_context += f"\nConteúdo raspado de {tool.website_url}:\n{scraped_content}\n"
+            except Exception as e:
+                st.warning(f"Falha ao raspar {tool.website_url}: {e}")
 
         phase_two_prompt = (
             f"输出和响应必须仅翻译成巴西葡萄牙语。"
@@ -181,7 +164,6 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 # Função para refinar uma resposta existente com base na análise e melhoria do conteúdo.
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list) -> str:
     try:
-        from groq import Groq
         client = Groq(api_key=API_KEY_REFINE)
 
         def get_completion(prompt: str) -> str:
@@ -232,8 +214,8 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         if not references_file:
             refine_prompt += (
                 f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, "
-                f"mesmo sem o uso de fontes externas. "
-                f"Mantenha um padrão de escrita consistente, com 10 parágrafos, cada parágrafo contendo 4 frases, e cite de acordo com as normas ABNT. "
+                f"mesmo sem o uso de fontes externas。"
+                f"Mantenha um padrão de escrita consistente, com 10 parágrafos, cada parágrafo contendo 4 frases, e cite de acordo com as normas ABNT。"
                 f"Utilize sempre um tom profissional e traduza tudo para o português do Brasil。"
             )
 
@@ -247,7 +229,6 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 # Função para avaliar a resposta com base em um agente gerador racional (RAG).
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, groq_api_key: str, chat_history: list) -> str:
     try:
-        from groq import Groq
         client = Groq(api_key=API_KEY_EVALUATE)
 
         def get_completion(prompt: str) -> str:
@@ -255,7 +236,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_descrip
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é一个assistente útil。"},
+                            {"role": "system", "content": "Você é一个assitente útil。"},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -459,7 +440,7 @@ with st.sidebar.expander("Insights do Código"):
 
     **Inovações:**
     - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA, para gerar respostas mais precisas e personalizadas。
-    - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de语言自然de alta performance para gerar respostas precisas。
+    - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de linguagem natural de alta performance para gerar respostas precisas。
     - Refinamento de respostas: O código permite que o usuário refine as respostas do modelo de linguagem, tornando-as mais precisas e relevantes para a consulta。
     - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do modelo de linguagem。
 
@@ -474,7 +455,7 @@ with st.sidebar.expander("Insights do Código"):
     - Necessidade de treinamento adicional: O modelo de linguagem pode precisar de treinamento adicional para lidar com consultas mais complexas ou específicas。
 
     **Importância de ter colocado instruções em chinês:**
-    A linguagem chinesa tem uma densidade de informação mais alta do que muitas outras línguas, o que significa que os modelos de linguagem需要处理menostokens para entender o contexto e gerar respostas precisas。Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens。Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz。
+    A linguagem chinesa tem uma densidade de informação mais alta do que muitas outras línguas, o que significa que os modelos de linguagem需要处理 menostokens para entender o contexto e gerar respostas precisas。Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens。Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz。
 
     Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas。No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais。
     """)
