@@ -8,14 +8,21 @@ import streamlit as st
 from typing import Tuple
 from groq import Groq
 import base64
+from PyPDF2 import PdfFileReader
+import io
 
 # Configurações da página do Streamlit
-st.set_page_config(layout="wide")
+st.set_page_config(
+    page_title="Geomaker +IA",
+    page_icon="logo.png",
+    layout="wide",
+)
 
 # Definição de caminhos para arquivos
 FILEPATH = "agents.json"
 CHAT_HISTORY_FILE = 'chat_history.json'
 API_USAGE_FILE = 'api_usage.json'
+REFERENCES_FILE = 'references.json'
 
 # Definição de modelos e tokens
 MODEL_MAX_TOKENS = {
@@ -232,7 +239,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     return expert_title, phase_two_response
 
 # Função para refinar resposta
-def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list, interaction_number: int) -> str:
+def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references: dict, chat_history: list, interaction_number: int) -> str:
     try:
         client = Groq(api_key=get_api_key('refine'))
 
@@ -270,10 +277,13 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"\n\nHistórico do chat:{history_context}"
         )
 
-        if not references_file:
+        if not references:
             refine_prompt += (
                 f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
             )
+        else:
+            references_text = "\n".join([f"{key}: {value}" for key, value in references.items()])
+            refine_prompt += f"\n\nReferências fornecidas:\n{references_text}"
 
         refined_response = get_completion(refine_prompt)
         return refined_response
@@ -362,6 +372,26 @@ def save_expert(expert_title: str, expert_description: str):
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
+# Função para salvar referências
+def save_references(references: dict, references_file=REFERENCES_FILE):
+    if os.path.exists(references_file):
+        with open(references_file, 'r+') as file:
+            existing_references = json.load(file)
+            existing_references.update(references)
+            file.seek(0)
+            json.dump(existing_references, file, indent=4)
+    else:
+        with open(references_file, 'w') as file:
+            json.dump(references, file, indent=4)
+
+# Função para extrair texto de PDF
+def extract_text_from_pdf(file):
+    pdf = PdfFileReader(file)
+    text = ""
+    for page in range(pdf.getNumPages()):
+        text += pdf.getPage(page).extractText()
+    return text
+
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
 
@@ -401,7 +431,7 @@ with col1:
     evaluate_clicked = st.button("Avaliar Resposta com RAG")
     refresh_clicked = st.button("Apagar")
 
-    references_file = st.file_uploader("Upload do arquivo JSON com referências (opcional)", type="json", key="arquivo_referencias")
+    references_file = st.file_uploader("Upload do arquivo JSON ou PDF com referências (opcional)", type=["json", "pdf"], key="arquivo_referencias")
 
 with col2:
     if 'resposta_assistente' not in st.session_state:
@@ -419,8 +449,19 @@ with col2:
 
     chat_history = load_chat_history()[-memory_selection:]
 
+    references = {}
+
+    if references_file:
+        if references_file.type == "application/json":
+            references = json.load(references_file)
+        elif references_file.type == "application/pdf":
+            references_text = extract_text_from_pdf(references_file)
+            references = {"PDF_Reference": references_text}
+
+        save_references(references)
+
     if fetch_clicked:
-        if references_file is None:
+        if not references:
             st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas.")
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number)
         st.session_state.resposta_original = st.session_state.resposta_assistente
@@ -429,7 +470,7 @@ with col2:
 
     if refine_clicked:
         if st.session_state.resposta_assistente:
-            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_file, chat_history, interaction_number)
+            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references, chat_history, interaction_number)
             save_chat_history(user_input, user_prompt, st.session_state.resposta_refinada)
         else:
             st.warning("Por favor, busque uma resposta antes de refinar.")
