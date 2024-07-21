@@ -9,5 +9,5 @@ PyPDF2
 matplotlib
 seaborn
 io
-base64
+
 
