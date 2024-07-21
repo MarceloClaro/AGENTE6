@@ -8,5 +8,4 @@ pysqlite3-binary
 PyPDF2
 matplotlib
 seaborn
-PdfFileReader
 
