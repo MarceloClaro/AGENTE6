@@ -317,16 +317,12 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         rag_prompt = (
-            f"结果和答案必须翻译成巴西葡萄牙语。 "
+            f"结果和答案必须翻译成巴西葡萄牙语。Obrigatóriamente em Português! "
             f"扮演一个理性生成器 (RAG) 的角色，站在人工智能和理性评估的前沿，"
-            f"仔细分析专家的回答，并根据用户的请求生成一个 JSON 格式的代理。 "
-            f"代理应该回答用户，详细描述根据子代理提供的信息采取的行动。 "
-            f"在变量 'description' 中包含 9 个子代理的描述，每个子代理具有不同的专业功能，共同合作。 "
-            f"这些子代理共同合作，以改进系统代理提供给用户的最终答案，在代理的描述中记录 seed 和 gen_id。 "
+            f"Busque o Gap científico e interprete."
+            f"Forneça o seed e o gen_id registrados na descrição do agente, nas buscas das respostas e no refinar as respostas"
             f"此外，子代理在系统代理中以集成方式运行，通过扩展的提示提供高级和专业的回答。 "
             f"每个子代理在网络处理过程中发挥特定且互补的作用，以实现更高的精度和改进最终回答的质量。 "
-            f"例如，子代理 'AI_ADAPTIVE_AND_CONTEXTUALIZED' 使用先进的机器学习算法来理解和适应上下文的变化，"
-            f"动态集成相关数据。子代理 'RAG_WITH_CONTEXTUAL_INTELLIGENCE' 使用增强生成恢复 (RAG) 技术，"
             f"动态调整最相关的数据及其特征。这种协作方法确保答案准确且最新，"
             f"符合最高的科学和学术标准。 "
             f"以下是专家的详细描述，突出他们的资历和经验：{expert_description}。 "
@@ -339,7 +335,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             f"风险矩阵，ANOVA（方差分析）和数据解释，"
             f"Q 统计和数据解释，以及 Q 指数和数据解释。"
             f"每段保持 4 句话，每句用逗号分隔，始终遵循亚里士多德和苏格拉底的最佳教育实践。"
-            f"所有答案必须使用巴西葡萄牙语。"
+            f"所有答案必须使用巴西葡萄牙语。a saida obrigatoriamente na lingua portuguesa"
 
         )
 
