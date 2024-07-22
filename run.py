@@ -10,7 +10,7 @@ from typing import List, Tuple
 import base64
 from PyPDF2 import PdfReader
 from sentence_transformers import SentenceTransformer
-import time  # Importando a biblioteca time
+import time
 
 # Configurações da página do Streamlit
 st.set_page_config(
