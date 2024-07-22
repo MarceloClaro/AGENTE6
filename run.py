@@ -184,7 +184,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     expert_title = ""
     expert_description = ""
     try:
-        client = Client(Settings(chroma_api_impl=FastAPI))
+        client = Client(Settings(chroma_api_impl="chromadb.api.fastapi.FastAPI"))
         def get_completion(prompt: str) -> str:
             start_time = time.time()
             while True:
@@ -240,7 +240,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 # Função para refinar resposta
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Client(Settings(chroma_api_impl=FastAPI))
+        client = Client(Settings(chroma_api_impl="chromadb.api.fastapi.FastAPI"))
         def get_completion(prompt: str) -> str:
             start_time = time.time()
             while True:
@@ -282,7 +282,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 # Função para avaliar resposta com RAG
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Client(Settings(chroma_api_impl=FastAPI))
+        client = Client(Settings(chroma_api_impl="chromadb.api.fastapi.FastAPI"))
         def get_completion(prompt: str) -> str:
             start_time = time.time()
             while True:
@@ -410,7 +410,7 @@ def process_references(references):
 # Função para salvar embeddings em ChromaDB
 def save_embeddings_to_chromadb(embeddings, chunks):
     try:
-        chroma_client = Client(Settings(chroma_api_impl=FastAPI))
+        chroma_client = Client(Settings(chroma_api_impl="chromadb.api.fastapi.FastAPI"))
         collection = chroma_client.create_collection('references')
         for i, (embedding, chunk) in enumerate(zip(embeddings, chunks)):
             collection.insert(embedding, {"text": chunk, "id": str(i)})
