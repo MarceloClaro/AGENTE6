@@ -8,12 +8,15 @@ import streamlit as st
 from typing import Tuple
 from groq import Groq
 import base64
-from PyPDF2 import PdfFileReader
-import io
+import fitz  # PyMuPDF
+from sentence_transformers import SentenceTransformer
+from chromadb.config import Settings
+from chromadb import Client
+from chromadb.utils import embed_texts
 
 # Configurações da página do Streamlit
 st.set_page_config(
-    page_title="Geomaker +IA",
+    page_title="Geomaker + IA",
     page_icon="logo.png",
     layout="wide",
 )
@@ -22,7 +25,7 @@ st.set_page_config(
 FILEPATH = "agents.json"
 CHAT_HISTORY_FILE = 'chat_history.json'
 API_USAGE_FILE = 'api_usage.json'
-REFERENCES_FILE = 'references.json'
+REFERENCE_COLLECTION = "reference_texts"
 
 # Definição de modelos e tokens
 MODEL_MAX_TOKENS = {
@@ -239,7 +242,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     return expert_title, phase_two_response
 
 # Função para refinar resposta
-def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references: dict, chat_history: list, interaction_number: int) -> str:
+def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list, interaction_number: int) -> str:
     try:
         client = Groq(api_key=get_api_key('refine'))
 
@@ -277,13 +280,10 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"\n\nHistórico do chat:{history_context}"
         )
 
-        if not references:
+        if not references_file:
             refine_prompt += (
                 f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
             )
-        else:
-            references_text = "\n".join([f"{key}: {value}" for key, value in references.items()])
-            refine_prompt += f"\n\nReferências fornecidas:\n{references_text}"
 
         refined_response = get_completion(refine_prompt)
         return refined_response
@@ -346,7 +346,6 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             f"Q 统计和数据解释，以及 Q 指数和数据解释。"
             f"每段保持 4 句话，每句用逗号分隔，始终遵循亚里士多德和苏格拉底的最佳教育实践。"
             f"所有答案必须使用巴西葡萄牙语。a saida obrigatoriamente na lingua portuguesa"
-
         )
 
         rag_response = get_completion(rag_prompt)
@@ -372,25 +371,38 @@ def save_expert(expert_title: str, expert_description: str):
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
-# Função para salvar referências
-def save_references(references: dict, references_file=REFERENCES_FILE):
-    if os.path.exists(references_file):
-        with open(references_file, 'r+') as file:
-            existing_references = json.load(file)
-            existing_references.update(references)
-            file.seek(0)
-            json.dump(existing_references, file, indent=4)
+# Função para carregar e salvar referências
+def save_references(file):
+    file_type = file.type.split('/')[-1]
+    file_name = file.name
+    if file_type == 'pdf':
+        text = extract_text_from_pdf(file)
+    elif file_type == 'json':
+        text = extract_text_from_json(file)
     else:
-        with open(references_file, 'w') as file:
-            json.dump(references, file, indent=4)
+        st.error("Tipo de arquivo não suportado")
+        return
 
-# Função para extrair texto de PDF
-def extract_text_from_pdf(file):
-    pdf = PdfFileReader(file)
+    references_path = f"references_{file_name.split('.')[0]}.json"
+    with open(references_path, 'w') as f:
+        json.dump(text, f)
+    return references_path
+
+def extract_text_from_pdf(pdf_file):
+    doc = fitz.open(pdf_file)
     text = ""
-    for page in range(pdf.getNumPages()):
-        text += pdf.getPage(page).extractText()
+    for page in doc:
+        text += page.get_text()
     return text
+
+def extract_text_from_json(json_file):
+    return json.load(json_file)
+
+def load_references(file):
+    references_path = save_references(file)
+    with open(references_path, 'r') as f:
+        references = json.load(f)
+    return references
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
@@ -449,20 +461,11 @@ with col2:
 
     chat_history = load_chat_history()[-memory_selection:]
 
-    references = {}
-
-    if references_file:
-        if references_file.type == "application/json":
-            references = json.load(references_file)
-        elif references_file.type == "application/pdf":
-            references_text = extract_text_from_pdf(references_file)
-            references = {"PDF_Reference": references_text}
-
-        save_references(references)
-
     if fetch_clicked:
-        if not references:
-            st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas.")
+        if references_file:
+            references = load_references(references_file)
+        else:
+            references = None
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number)
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
@@ -470,6 +473,10 @@ with col2:
 
     if refine_clicked:
         if st.session_state.resposta_assistente:
+            if references_file:
+                references = load_references(references_file)
+            else:
+                references = None
             st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references, chat_history, interaction_number)
             save_chat_history(user_input, user_prompt, st.session_state.resposta_refinada)
         else:
@@ -477,6 +484,10 @@ with col2:
 
     if evaluate_clicked:
         if st.session_state.resposta_assistente and st.session_state.descricao_especialista_ideal:
+            if references_file:
+                references = load_references(references_file)
+            else:
+                references = None
             st.session_state.rag_resposta = evaluate_response_with_rag(user_input, user_prompt, st.session_state.descricao_especialista_ideal, st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, model_name, temperature, chat_history, interaction_number)
             save_chat_history(user_input, user_prompt, st.session_state.rag_resposta)
         else:
@@ -530,18 +541,18 @@ with st.sidebar.expander("Insights do Código"):
     Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas. No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais.
     """)
 
-    # Informações de contato
-    st.sidebar.image("eu.ico", width=80)
-    st.sidebar.write("""
-    Projeto Geomaker + IA 
-    - Professor: Marcelo Claro.
+# Informações de contato
+st.sidebar.image("eu.ico", width=80)
+st.sidebar.write("""
+Projeto Geomaker + IA 
+- Professor: Marcelo Claro.
 
-    Contatos: marceloclaro@gmail.com
+Contatos: marceloclaro@gmail.com
 
-    Whatsapp: (88)981587145
+Whatsapp: (88)981587145
 
-    Instagram: [https://www.instagram.com/marceloclaro.geomaker/](https://www.instagram.com/marceloclaro.geomaker/)
-    """)
+Instagram: [https://www.instagram.com/marceloclaro.geomaker/](https://www.instagram.com/marceloclaro.geomaker/)
+""")
 
 # Carrega o uso da API e plota o histograma
 api_usage = load_api_usage()
