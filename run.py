@@ -6,8 +6,9 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
 from typing import Tuple
-from some_library import Client, Settings  # Substitua com a biblioteca correta
+from groq import Groq
 import base64
+import fitz  # PyMuPDF
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -173,7 +174,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     expert_title = ""
     expert_description = ""
     try:
-        client = Client(Settings(api_key=get_api_key('fetch')))
+        client = Groq(api_key=get_api_key('fetch'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
@@ -238,7 +239,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 # Função para refinar resposta
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Client(Settings(api_key=get_api_key('refine')))
+        client = Groq(api_key=get_api_key('refine'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
@@ -289,7 +290,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 # Função para avaliar resposta com RAG
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Client(Settings(api_key=get_api_key('evaluate')))
+        client = Groq(api_key=get_api_key('evaluate'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
@@ -333,14 +334,13 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             f"原始问题如下：{user_input} 和 {user_prompt}。 "
             f"专家用葡萄牙语提供的回答如下：{assistant_response}。 "
             f"因此，请仔细评估专家用葡萄牙语提供的回答的质量和准确性，"
-            f"考虑提供的描述和专家提供的回答。 "
+            f"考虑提供的描述和专家提供 as respostas。 "
             f"用葡萄牙语分析并提供详细解释："
             f"SWOT 分析（优势、劣势、机会、威胁）和数据解释，"
-            f"风险矩阵，ANOVA（方差分析）和数据解释，"
+            f"风险矩阵，ANOVA（方差分析）和 dados de explicação，"
             f"Q 统计和数据解释，以及 Q 指数和数据解释。"
             f"每段保持 4 句话，每句用逗号分隔，始终遵循亚里士多德和苏格拉底的最佳教育实践。"
             f"所有答案必须使用巴西葡萄牙语。a saida obrigatoriamente na lingua portuguesa"
-
         )
 
         rag_response = get_completion(rag_prompt)
@@ -363,8 +363,37 @@ def save_expert(expert_title: str, expert_description: str):
             file.seek(0)
             json.dump(agents, file, indent=4)
     else:
-        with open(FILEPATH, 'w') as file):
+        with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
+
+# Função para extrair texto de PDFs usando PyMuPDF
+def extract_text_from_pdf(file):
+    try:
+        pdf_document = fitz.open(file)
+        text = ""
+        for page_num in range(len(pdf_document)):
+            page = pdf_document.load_page(page_num)
+            text += page.get_text()
+        return text
+    except Exception as e:
+        st.error(f"Erro ao extrair texto do PDF: {e}")
+        return ""
+
+# Função para fazer upload e extração de textos de arquivos JSON ou PDF
+def upload_and_extract_references(uploaded_file):
+    references = {}
+    try:
+        if uploaded_file.name.endswith('.json'):
+            references = json.load(uploaded_file)
+        elif uploaded_file.name.endswith('.pdf'):
+            text = extract_text_from_pdf(uploaded_file)
+            references = {"text": text}
+        with open("references.json", 'w') as file:
+            json.dump(references, file, indent=4)
+        return "references.json"
+    except Exception as e:
+        st.error(f"Erro ao carregar e extrair referências: {e}")
+        return ""
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
@@ -405,7 +434,7 @@ with col1:
     evaluate_clicked = st.button("Avaliar Resposta com RAG")
     refresh_clicked = st.button("Apagar")
 
-    references_file = st.file_uploader("Upload do arquivo JSON com referências (opcional)", type="json", key="arquivo_referencias")
+    references_file = st.file_uploader("Upload do arquivo JSON ou PDF com referências (opcional)", type=["json", "pdf"], key="arquivo_referencias")
 
 with col2:
     if 'resposta_assistente' not in st.session_state:
@@ -424,8 +453,11 @@ with col2:
     chat_history = load_chat_history()[-memory_selection:]
 
     if fetch_clicked:
-        if references_file is None:
-            st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas.")
+        if references_file:
+            references_path = upload_and_extract_references(references_file)
+            references = json.load(open(references_path))
+            st.session_state.references_path = references_path
+
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number)
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
