@@ -11,3 +11,4 @@ seaborn
 sentence_transformers
 fitz
 chromadb
+PyMuPDF
