@@ -13,3 +13,4 @@ fitz
 chromadb
 PyMuPDF
 frontend
+starlette
