@@ -1,3 +1,5 @@
+#Imports e Configurações
+
 import os
 import pdfplumber
 import json
@@ -5,19 +7,15 @@ import re
 import pandas as pd
 import streamlit as st
 from typing import Tuple
+from groq import Groq
 import time
 import seaborn as sns
 import matplotlib.pyplot as plt
 import base64
-import shutil
-
-# Remover módulos não utilizados
-# import ipywidgets as widgets
-# from IPython.display import display
 
 # Configurações da página do Streamlit
 st.set_page_config(
-    page_title="Geomaker +IA",
+    page_title="Consultor de PDFs + IA",
     page_icon="logo.png",
     layout="wide",
 )
@@ -44,7 +42,7 @@ API_KEYS = {
 
 # Função para obter a próxima chave de API disponível
 def get_api_key(action: str) -> str:
-    keys = API_KEYS[action]
+    keys = API_KEYS.get(action, [])
     if keys:
         return keys.pop(0)
     else:
@@ -61,6 +59,58 @@ def load_agent_options() -> list:
             except json.JSONDecodeError:
                 st.error("Erro ao ler o arquivo de Agentes. Por favor, verifique o formato.")
     return agent_options
+    
+#Funções para Extração e Processamento de PDF
+# Função para extrair texto de PDFs usando pdfplumber
+def extrair_texto_pdf_intervalos(file, pagina_inicial, pagina_final, limite_paginas):
+    intervalos_texto = []
+    with pdfplumber.open(file) as pdf:
+        for inicio_intervalo in range(pagina_inicial - 1, min(pagina_final, len(pdf.pages)), limite_paginas):
+            fim_intervalo = min(inicio_intervalo + limite_paginas, pagina_final)
+            texto_intervalo = []
+            for num_pagina in range(inicio_intervalo, fim_intervalo):
+                pagina = pdf.pages[num_pagina]
+                texto_pagina = pagina.extract_text()
+                if texto_pagina:
+                    texto_intervalo.append(texto_pagina)
+            if texto_intervalo:
+                intervalos_texto.append(" ".join(texto_intervalo))
+    return intervalos_texto
+
+# Função para converter texto em DataFrame
+def text_to_dataframe(text):
+    lines = text.split('\n')
+    data = [line.split() for line in lines if line.strip()]
+    if data:
+        df = pd.DataFrame(data)
+    else:
+        df = pd.DataFrame()
+    return df
+
+# Função para fazer upload e extração de textos de arquivos JSON ou PDF
+def upload_and_extract_references(uploaded_file):
+    references = {}
+    try:
+        if uploaded_file.name.endswith('.json'):
+            references = json.load(uploaded_file)
+            with open("references.json", 'w') as file:
+                json.dump(references, file, indent=4)
+            return "references.json"
+        elif uploaded_file.name.endswith('.pdf'):
+            intervalos_texto = extrair_texto_pdf_intervalos(uploaded_file, 1, 1000, 10)
+            dfs = [text_to_dataframe(texto) for texto in intervalos_texto if texto]
+            if dfs:
+                df = pd.concat(dfs, ignore_index=True)
+                df.to_csv("references.csv", index=False)
+                return df
+            else:
+                st.error("Nenhum texto extraído do PDF.")
+                return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Erro ao carregar e extrair referências: {e}")
+        return pd.DataFrame()
+
+#Funções de Interação com a API
 
 # Função para obter o número máximo de tokens de um modelo
 def get_max_tokens(model_name: str) -> int:
@@ -176,14 +226,15 @@ def reset_api_usage():
         os.remove(API_USAGE_FILE)
     st.success("Os dados de uso da API foram resetados.")
 
+#Funções para Interação com o Assistente
+
 # Função para buscar resposta do assistente
 def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, interaction_number: int) -> Tuple[str, str]:
     phase_two_response = ""
     expert_title = ""
     expert_description = ""
     try:
-        # A linha abaixo foi comentada porque a importação Groq foi removida
-        # client = Groq(api_key=get_api_key('fetch'))
+        client = Groq(api_key=get_api_key('fetch'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
@@ -204,7 +255,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                     end_time = time.time()
                     tokens_used = completion.usage.total_tokens
                     time_taken = end_time - start_time
-                    api_response = completion.choices[0].message.content
+                    api_response = completion.choices[0].message.content if completion.choices else ""
                     log_api_usage('fetch', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, expert_description)
                     return api_response
                 except Exception as e:
@@ -223,14 +274,17 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             else:
                 st.error("Erro ao extrair título e descrição do especialista.")
         else:
-            with open(FILEPATH, 'r') as file:
-                agents = json.load(file)
-                agent_found = next((agent for agent in agents if agent["agente"] == agent_selection), None)
-                if agent_found:
-                    expert_title = agent_found["agente"]
-                    expert_description = agent_found["descricao"]
-                else:
-                    raise ValueError("Especialista selecionado não encontrado no arquivo.")
+            if os.path.exists(FILEPATH):
+                with open(FILEPATH, 'r') as file:
+                    agents = json.load(file)
+                    agent_found = next((agent for agent in agents if agent["agente"] == agent_selection), None)
+                    if agent_found:
+                        expert_title = agent_found["agente"]
+                        expert_description = agent_found["descricao"]
+                    else:
+                        raise ValueError("Especialista selecionado não encontrado no arquivo.")
+            else:
+                raise FileNotFoundError(f"Arquivo {FILEPATH} não encontrado.")
 
         history_context = ""
         for entry in chat_history:
@@ -251,8 +305,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 # Função para refinar resposta
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list, interaction_number: int) -> str:
     try:
-        # A linha abaixo foi comentada porque a importação Groq foi removida
-        # client = Groq(api_key=get_api_key('refine'))
+        client = Groq(api_key=get_api_key('refine'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
@@ -273,7 +326,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                     end_time = time.time()
                     tokens_used = completion.usage.total_tokens
                     time_taken = end_time - start_time
-                    api_response = completion.choices[0].message.content
+                    api_response = completion.choices[0].message.content if completion.choices else ""
                     log_api_usage('refine', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, "")
                     return api_response
                 except Exception as e:
@@ -303,8 +356,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 # Função para avaliar resposta com RAG
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
     try:
-        # A linha abaixo foi comentada porque a importação Groq foi removida
-        # client = Groq(api_key=get_api_key('evaluate'))
+        client = Groq(api_key=get_api_key('evaluate'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
@@ -325,7 +377,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
                     end_time = time.time()
                     tokens_used = completion.usage.total_tokens
                     time_taken = end_time - start_time
-                    api_response = completion.choices[0].message.content
+                    api_response = completion.choices[0].message.content if completion.choices else ""
                     log_api_usage('evaluate', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, expert_description)
                     return api_response
                 except Exception as e:
@@ -336,25 +388,9 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         rag_prompt = (
-            f"结果和答案必须翻译成巴西葡萄牙语。Obrigatóriamente em Português! "
-            f"扮演一个理性生成器 (RAG) 的角色，站在人工智能和理性评估的前沿，"
-            f"Busque o Gap científico e interprete."
-            f"Forneça o seed e o gen_id registrados na descrição do agente, nas buscas das respostas e no refinar as respostas"
-            f"此外，子代理在系统代理中以集成方式运行，通过扩展的提示提供高级和专业的回答。 "
-            f"每个子代理在网络处理过程中发挥特定且互补的作用，以实现更高的精度和改进最终回答的质量。 "
-            f"动态调整最相关的数据及其特征。这种协作方法确保答案准确且最新，"
-            f"符合最高的科学和学术标准。 "
-            f"以下是专家的详细描述，突出他们的资历和经验：{expert_description}。 "
-            f"原始问题如下：{user_input} 和 {user_prompt}。 "
-            f"专家用葡萄牙语提供的回答如下：{assistant_response}。 "
-            f"因此，请仔细评估专家用葡萄牙语提供的回答的质量和准确性，"
-            f"考虑提供的描述 e os dados fornecidos pelo especialista. "
-            f"用葡萄牙语分析并提供详细解释："
-            f"SWOT 分析（优势、劣势、机会、威胁）和数据解释，"
-            f"风险矩阵，ANOVA（方差分析）和 dados de explicação，"
-            f"Q 统计和数据解释，以及 Q 指数和数据解释。"
-            f"每段保持 4 句话，每句用逗号分隔，始终遵循亚里士多德和苏格拉底的最佳教育实践。"
-            f"所有答案必须使用巴西葡萄牙语。a saida obrigatoriamente na lingua portuguesa"
+            f"{expert_title}, por favor, avalie a seguinte resposta: {assistant_response}. Solicitação original: {user_input} e {user_prompt}."
+            f"\n\nHistórico do chat:{history_context}"
+            f"\n\nDescreva detalhadamente as melhorias possíveis na resposta fornecida."
         )
 
         rag_response = get_completion(rag_prompt)
@@ -380,101 +416,17 @@ def save_expert(expert_title: str, expert_description: str):
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
-# Função para extrair texto de PDFs usando pdfplumber
-def extrair_texto_pdf_intervalos(file, pagina_inicial, pagina_final, limite_paginas):
-    intervalos_texto = []
-    with pdfplumber.open(file) as pdf:
-        for inicio_intervalo in range(pagina_inicial - 1, min(pagina_final, len(pdf.pages)), limite_paginas):
-            fim_intervalo = min(inicio_intervalo + limite_paginas, pagina_final)
-            texto_intervalo = []
-            for num_pagina in range(inicio_intervalo, fim_intervalo):
-                pagina = pdf.pages[num_pagina]
-                texto_pagina = pagina.extract_text()
-                if texto_pagina:
-                    texto_intervalo.append(texto_pagina)
-            if texto_intervalo:
-                intervalos_texto.append(" ".join(texto_intervalo))
-    return intervalos_texto
 
-# Função para identificar seções com base em expressões regulares
-def identificar_secoes(texto, secao_inicial):
-    secoes = {}
-    secao_atual = secao_inicial
-    secoes[secao_atual] = ""
-
-    paragrafos = texto.split('\n')
-    for paragrafo in paragrafos:
-        match = re.match(r'Parte \d+\.', paragrafo) or re.match(r'Capítulo \d+: .*', paragrafo) or re.match(r'\d+\.\d+ .*', paragrafo)
-        if match:
-            secao_atual = match.group()
-            secoes[secao_atual] = ""
-        else:
-            secoes[secao_atual] += paragrafo + "\n"
-
-    return secoes
-
-# Função para salvar os dados em um arquivo JSON
-def salvar_como_json(dados, caminho_saida):
-    with open(caminho_saida, 'w', encoding='utf-8') as file:
-        json.dump(dados, file, ensure_ascii=False, indent=4)
-
-# Função para processar e salvar cada intervalo como JSON
-def processar_e_salvar(intervalos_texto, secao_inicial, caminho_pasta_base, nome_arquivo):
-    for i, texto_intervalo in enumerate(intervalos_texto):
-        secoes = identificar_secoes(texto_intervalo, secao_inicial)
-        caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}_{i}.json")
-        salvar_como_json(secoes, caminho_saida)
-
-# Função para converter texto em DataFrame
-def text_to_dataframe(text):
-    lines = text.split('\n')
-    data = [line.split() for line in lines if line.strip()]
-    if data:
-        df = pd.DataFrame(data)
-    else:
-        df = pd.DataFrame()
-    return df
-
-# Função para fazer upload e extração de textos de arquivos JSON ou PDF
-def upload_and_extract_references(uploaded_file):
-    references = {}
-    try:
-        if uploaded_file.name.endswith('.json'):
-            references = json.load(uploaded_file)
-            with open("references.json", 'w') as file:
-                json.dump(references, file, indent=4)
-            return "references.json"
-        elif uploaded_file.name.endswith('.pdf'):
-            intervalos_texto = extrair_texto_pdf_intervalos(uploaded_file, 1, 1000, 10)
-            dfs = [text_to_dataframe(texto) for texto in intervalos_texto if texto]
-            if dfs:
-                df = pd.concat(dfs, ignore_index=True)
-                return df
-            else:
-                st.error("Nenhum texto extraído do PDF.")
-                return pd.DataFrame()
-    except Exception as e:
-        st.error(f"Erro ao carregar e extrair referências: {e}")
-        return pd.DataFrame()
+#Interface Principal com Streamlit
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
 
 # Layout da página
-st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo." - Alan Kay', use_column_width='always', output_format='auto')
-st.markdown("<h1 style='text-align: center;'>Agentes Alan Kay</h1>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão.</h2>", unsafe_allow_html=True)
+st.image('updating.gif', width=300, caption='Consultor de PDFs + IA', use_column_width='always', output_format='auto')
+st.markdown("<h1 style='text-align: center;'>Consultor de PDFs</h1>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Utilize nossa plataforma para consultas detalhadas em PDFs.</h2>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center;'>Descubra como nossa plataforma pode revolucionar a educação.</h2>", unsafe_allow_html=True)
-
-with st.expander("Clique para saber mais sobre os Agentes Alan Kay."):
-    st.write("1. **Conecte-se instantaneamente com especialistas:** Imagine ter acesso direto a especialistas em diversas áreas do conhecimento, prontos para responder às suas dúvidas e orientar seus estudos e pesquisas.")
-    st.write("2. **Aprendizado personalizado e interativo:** Receba respostas detalhadas e educativas, adaptadas às suas necessidades específicas, tornando o aprendizado mais eficaz e envolvente.")
-    st.write("3. **Suporte acadêmico abrangente:** Desde aulas particulares até orientações para projetos de pesquisa, nossa plataforma oferece um suporte completo para alunos, professores e pesquisadores.")
-    st.write("4. **Avaliação e aprimoramento contínuo:** Utilizando o Rational Agent Generator (RAG), garantimos que as respostas dos especialistas sejam sempre as melhores, mantendo um padrão de excelência em todas as interações.")
-    st.write("5. **Desenvolvimento profissional e acadêmico:** Professores podem encontrar recursos e orientações para melhorar suas práticas de ensino, enquanto pesquisadores podem obter insights valiosos para suas investigações.")
-    st.write("6. **Inovação e tecnologia educacional:** Nossa plataforma incorpora as mais recentes tecnologias para proporcionar uma experiência educacional moderna e eficiente.")
-    st.image("fluxograma agente 4.png")
 
 # Seleção de memória do chat
 memory_selection = st.selectbox("Selecione a quantidade de interações para lembrar:", options=[5, 10, 15, 25, 50, 100])
@@ -520,7 +472,7 @@ with col2:
             if isinstance(df, pd.DataFrame):
                 st.write("### Dados Extraídos do PDF")
                 st.dataframe(df)
-                st.session_state.references_path = "references.json"
+                st.session_state.references_path = "references.csv"
 
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number)
         st.session_state.resposta_original = st.session_state.resposta_assistente
@@ -565,20 +517,21 @@ if refresh_clicked:
 st.sidebar.image("logo.png", width=200)
 with st.sidebar.expander("Insights do Código"):
     st.markdown("""
-    O código do Agentes Alan Kay é um exemplo de uma aplicação de chat baseada em modelos de linguagem (LLMs) utilizando a biblioteca Streamlit. Aqui, vamos analisar detalhadamente o código e discutir suas inovações, pontos positivos e limitações.
+    O código do Consultor de PDFs + IA é um exemplo de uma aplicação de chat baseada em modelos de linguagem (LLMs) utilizando a biblioteca Streamlit e a API Groq. Aqui, vamos analisar detalhadamente o código e discutir suas inovações, pontos positivos e limitações.
 
     **Inovações:**
     - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA, para gerar respostas mais precisas e personalizadas.
+    - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de linguagem natural de alta performance para gerar respostas precisas.
     - Refinamento de respostas: O código permite que o usuário refine as respostas do modelo de linguagem, tornando-as mais precisas e relevantes para a consulta.
     - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do modelo de linguagem.
 
     **Pontos positivos:**
     - Personalização: O aplicativo permite que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas de acordo com suas necessidades.
-    - Precisão: O refinamento de respostas garante que as respostas sejam precisas e relevantes para a consulta.
+    - Precisão: A integração com a API Groq e o refinamento de respostas garantem que as respostas sejam precisas e relevantes para a consulta.
     - Flexibilidade: O código é flexível o suficiente para permitir que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas.
 
     **Limitações:**
-    - Dificuldade de uso: O aplicativo pode ser difícil de usar para os usuários que não têm experiência com modelos de linguagem.
+    - Dificuldade de uso: O aplicativo pode ser difícil de usar para os usuários que não têm experiência com modelos de linguagem ou API.
     - Limitações de token: O código tem limitações em relação ao número de tokens que podem ser processados pelo modelo de linguagem.
     - Necessidade de treinamento adicional: O modelo de linguagem pode precisar de treinamento adicional para lidar com consultas mais complexas ou específicas.
 
@@ -591,14 +544,14 @@ with st.sidebar.expander("Insights do Código"):
     # Informações de contato
     st.sidebar.image("eu.ico", width=80)
     st.sidebar.write("""
-    Projeto Geomaker + IA 
+    Projeto Consultor de PDFs + IA 
     - Professor: Marcelo Claro.
 
     Contatos: marceloclaro@gmail.com
 
     Whatsapp: (88)981587145
 
-    Instagram: [https://www.instagram.com/marceloclaro.geomaker/](https://www.instagram.com/marceloclaro.geomaker/)
+    Instagram: [https://www.instagram.com/marceloclaro.consultorpdfs/](https://www.instagram.com/marceloclaro.consultorpdfs/)
     """)
 
 # Carrega o uso da API e plota o histograma
@@ -610,38 +563,3 @@ if api_usage:
 if st.sidebar.button("Resetar Gráficos"):
     reset_api_usage()
 
-# Controle de Áudio
-st.sidebar.title("Controle de Áudio")
-
-# Lista de arquivos MP3
-mp3_files = {
-    "Entenda o projeto:": "rag (1).mp3"
-}
-
-# Controle de seleção de música
-selected_mp3 = st.sidebar.radio("Escolha uma música", list(mp3_files.keys()))
-
-# Opção de loop
-loop = st.sidebar.checkbox("Repetir música")
-
-# Botão de play
-play_button = st.sidebar.button("Play")
-
-# Carregar e exibir o player de áudio
-audio_placeholder = st.sidebar.empty()
-if selected_mp3 and play_button:
-    mp3_path = mp3_files[selected_mp3]
-    try:
-        with open(mp3_path, "rb") as audio_file:
-            audio_bytes = audio_file.read()
-            audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
-            loop_attr = "loop" if loop else ""
-            audio_html = f"""
-            <audio id="audio-player" controls autoplay {loop_attr}>
-              <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
-              Seu navegador não suporta o elemento de áudio.
-            </audio>
-            """
-            audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
-    except FileNotFoundError:
-        audio_placeholder.error(f"Arquivo {mp3_path} não encontrado.")
