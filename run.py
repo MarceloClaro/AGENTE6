@@ -1,18 +1,15 @@
-import subprocess
-import time
+import faiss
+import numpy as np
 import json
 import os
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
-from typing import Tuple
+from typing import List, Tuple
 import base64
 from PyPDF2 import PdfReader
 from sentence_transformers import SentenceTransformer
-from chromadb.api.fastapi import FastAPI
-from chromadb.config import Settings
-from chromadb import Client
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -21,19 +18,12 @@ st.set_page_config(
     layout="wide",
 )
 
-# Função para iniciar o servidor ChromaDB
-def start_chromadb_server():
-    subprocess.Popen(['chromadb', 'serve', '--host', '0.0.0.0', '--port', '8000'])
-    time.sleep(5)  # Esperar alguns segundos para garantir que o servidor está em execução
-
-# Iniciar o servidor ChromaDB
-start_chromadb_server()
-
 # Definição de caminhos para arquivos
 FILEPATH = "agents.json"
 CHAT_HISTORY_FILE = 'chat_history.json'
 API_USAGE_FILE = 'api_usage.json'
 REFERENCES_FILE = 'references.json'
+INDEX_FILE = 'faiss_index.bin'
 
 # Definição de modelos e tokens
 MODEL_MAX_TOKENS = {
@@ -43,7 +33,7 @@ MODEL_MAX_TOKENS = {
     'gemma-7b-it': 8192,
 }
 
-# Chaves da API
+# Função para obter a próxima chave de API disponível
 API_KEYS = {
     "fetch": ["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", "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"],
     "refine": ["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", "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"],
@@ -59,7 +49,7 @@ def get_api_key(action: str) -> str:
         raise ValueError(f"No API keys available for action '{action}'")
 
 # Função para carregar opções de agentes
-def load_agent_options() -> list:
+def load_agent_options() -> List[str]:
     agent_options = ['Escolher um especialista...']
     if os.path.exists(FILEPATH):
         with open(FILEPATH, 'r') as file:
@@ -416,16 +406,18 @@ def process_references(references):
         st.error(f"Erro ao processar referências: {e}")
         return [], []
 
-# Função para salvar embeddings em ChromaDB
-def save_embeddings_to_chromadb(embeddings, chunks):
+# Função para salvar embeddings em FAISS
+def save_embeddings_to_faiss(embeddings, chunks):
     try:
-        chroma_client = Client(Settings(chroma_api_impl="chromadb.api.fastapi.FastAPI", chroma_server_host="localhost", chroma_server_http_port=8000))
-        collection = chroma_client.create_collection('references')
-        for i, (embedding, chunk) in enumerate(zip(embeddings, chunks)):
-            collection.insert(embedding, {"text": chunk, "id": str(i)})
-        return collection
+        dimension = embeddings.shape[1]
+        index = faiss.IndexFlatL2(dimension)
+        index.add(embeddings)
+        faiss.write_index(index, INDEX_FILE)
+        with open("chunks.json", "w") as f:
+            json.dump(chunks, f)
+        return index
     except Exception as e:
-        st.error(f"Erro ao salvar embeddings em ChromaDB: {e}")
+        st.error(f"Erro ao salvar embeddings em FAISS: {e}")
         return None
 
 # Carrega as opções de Agentes a partir do arquivo JSON
@@ -490,7 +482,7 @@ with col2:
             references_path = upload_and_extract_references(references_file)
             references = load_references()
             embeddings, chunks = process_references(references)
-            save_embeddings_to_chromadb(embeddings, chunks)
+            save_embeddings_to_faiss(np.array(embeddings), chunks)
             st.session_state.references_path = references_path
 
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number)
