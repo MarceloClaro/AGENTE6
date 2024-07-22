@@ -368,7 +368,7 @@ def save_expert(expert_title: str, expert_description: str):
             file.seek(0)
             json.dump(agents, file, indent=4)
     else:
-        with open(FILEPATH, 'w') as file):
+        with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
 # Função para extrair texto de PDFs usando PyPDF2
