@@ -8,7 +8,7 @@ import streamlit as st
 from typing import Tuple
 from groq import Groq
 import base64
-import PyMuPDF
+import fitz  # PyMuPDF
 from sentence_transformers import SentenceTransformer
 from chromadb.config import Settings
 from chromadb import Client
@@ -330,7 +330,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             f"原始问题如下：{user_input} 和 {user_prompt}。 "
             f"专家用葡萄牙语提供的回答如下：{assistant_response}。 "
             f"因此，请仔细评估专家用葡萄牙语提供的回答的质量和准确性，"
-            f"考虑提供的描述和专家提供的回答。 "
+            f"考虑提供的描述 e especialistas提供的 respostas。 "
             f"用葡萄牙语分析并提供详细解释："
             f"SWOT 分析（优势、劣势、机会、威胁）和数据解释，"
             f"风险矩阵，ANOVA（方差分析）和数据解释，"
@@ -364,50 +364,68 @@ def save_expert(expert_title: str, expert_description: str):
 
 # Função para extrair texto de PDFs
 def extract_text_from_pdf(file):
-    pdf_document = fitz.open(file)
-    text = ""
-    for page_num in range(pdf_document.page_count):
-        page = pdf_document.load_page(page_num)
-        text += page.get_text("text")
-    return text
+    try:
+        pdf_document = fitz.open(file)
+        text = ""
+        for page_num in range(pdf_document.page_count):
+            page = pdf_document.load_page(page_num)
+            text += page.get_text("text")
+        return text
+    except Exception as e:
+        st.error(f"Erro ao extrair texto do PDF: {e}")
+        return ""
 
 # Função para fazer upload e extração de textos de arquivos JSON ou PDF
 def upload_and_extract_references(uploaded_file):
     references = {}
-    if uploaded_file.name.endswith('.json'):
-        references = json.load(uploaded_file)
-    elif uploaded_file.name.endswith('.pdf'):
-        text = extract_text_from_pdf(uploaded_file)
-        references = {"text": text}
-    
-    with open(REFERENCES_FILE, 'w') as file:
-        json.dump(references, file, indent=4)
-
-    return REFERENCES_FILE
+    try:
+        if uploaded_file.name.endswith('.json'):
+            references = json.load(uploaded_file)
+        elif uploaded_file.name.endswith('.pdf'):
+            text = extract_text_from_pdf(uploaded_file)
+            references = {"text": text}
+        with open(REFERENCES_FILE, 'w') as file:
+            json.dump(references, file, indent=4)
+        return REFERENCES_FILE
+    except Exception as e:
+        st.error(f"Erro ao carregar e extrair referências: {e}")
+        return ""
 
 # Função para carregar referências
 def load_references():
-    if os.path.exists(REFERENCES_FILE):
-        with open(REFERENCES_FILE, 'r') as file:
-            references = json.load(file)
-        return references
-    return {}
+    try:
+        if os.path.exists(REFERENCES_FILE):
+            with open(REFERENCES_FILE, 'r') as file:
+                references = json.load(file)
+            return references
+        return {}
+    except Exception as e:
+        st.error(f"Erro ao carregar referências: {e}")
+        return {}
 
 # Função para carregar embeddings e dividir o texto em chunks
 def process_references(references):
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-    texts = references.get("text", "").split('\n')
-    chunks = [texts[i:i + 10] for i in range(0, len(texts), 10)]
-    embeddings = model.encode(chunks)
-    return embeddings, chunks
+    try:
+        model = SentenceTransformer('all-MiniLM-L6-v2')
+        texts = references.get("text", "").split('\n')
+        chunks = [texts[i:i + 10] for i in range(0, len(texts), 10)]
+        embeddings = model.encode(chunks)
+        return embeddings, chunks
+    except Exception as e:
+        st.error(f"Erro ao processar referências: {e}")
+        return [], []
 
 # Função para salvar embeddings em ChromaDB
 def save_embeddings_to_chromadb(embeddings, chunks):
-    chroma_client = Client(Settings())
-    collection = chroma_client.create_collection('references')
-    for i, (embedding, chunk) in enumerate(zip(embeddings, chunks)):
-        collection.insert(embedding, {"text": chunk, "id": str(i)})
-    return collection
+    try:
+        chroma_client = Client(Settings())
+        collection = chroma_client.create_collection('references')
+        for i, (embedding, chunk) in enumerate(zip(embeddings, chunks)):
+            collection.insert(embedding, {"text": chunk, "id": str(i)})
+        return collection
+    except Exception as e:
+        st.error(f"Erro ao salvar embeddings em ChromaDB: {e}")
+        return None
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
