@@ -44,7 +44,10 @@ API_KEYS = {
 # Função para obter a próxima chave de API disponível
 def get_api_key(action: str) -> str:
     keys = API_KEYS[action]
-    return keys.pop(0)
+    if keys:
+        return keys.pop(0)
+    else:
+        raise ValueError(f"No API keys available for action: {action}")
 
 # Função para carregar opções de agentes
 def load_agent_options() -> list:
@@ -211,9 +214,12 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             )
             phase_one_response = get_completion(phase_one_prompt)
             first_period_index = phase_one_response.find(".")
-            expert_title = phase_one_response[:first_period_index].strip()
-            expert_description = phase_one_response[first_period_index + 1:].strip()
-            save_expert(expert_title, expert_description)
+            if first_period_index != -1:
+                expert_title = phase_one_response[:first_period_index].strip()
+                expert_description = phase_one_response[first_period_index + 1:].strip()
+                save_expert(expert_title, expert_description)
+            else:
+                st.error("Erro ao extrair título e descrição do especialista.")
         else:
             with open(FILEPATH, 'r') as file:
                 agents = json.load(file)
@@ -424,21 +430,20 @@ def text_to_dataframe(text):
 
 # Função para fazer upload e extração de textos de arquivos JSON ou PDF
 def upload_and_extract_references(uploaded_file):
+    references = {}
     try:
         if uploaded_file.name.endswith('.json'):
-            with open(uploaded_file, 'r') as file:
-                references = json.load(file)
-                return pd.DataFrame(references)
+            references = json.load(uploaded_file)
+            with open("references.json", 'w') as file:
+                json.dump(references, file, indent=4)
+            return "references.json"
         elif uploaded_file.name.endswith('.pdf'):
             intervalos_texto = extrair_texto_pdf_intervalos(uploaded_file, 1, 1000, 10)
             df = pd.concat([text_to_dataframe(texto) for texto in intervalos_texto], ignore_index=True)
             return df
-        else:
-            st.error("Formato de arquivo não suportado.")
-            return None
     except Exception as e:
         st.error(f"Erro ao carregar e extrair referências: {e}")
-        return None
+        return ""
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
@@ -500,9 +505,10 @@ with col2:
     if fetch_clicked:
         if references_file:
             df = upload_and_extract_references(references_file)
-            st.write("### Dados Extraídos do PDF")
-            st.dataframe(df)
-            st.session_state.references_path = "references.json"
+            if isinstance(df, pd.DataFrame):
+                st.write("### Dados Extraídos do PDF")
+                st.dataframe(df)
+                st.session_state.references_path = "references.json"
 
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number)
         st.session_state.resposta_original = st.session_state.resposta_assistente
