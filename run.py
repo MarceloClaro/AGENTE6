@@ -8,7 +8,7 @@ import streamlit as st
 from typing import Tuple
 from groq import Groq
 import base64
-import fitz  # PyMuPDF
+from PyPDF2 import PdfFileReader
 from sentence_transformers import SentenceTransformer
 from chromadb.config import Settings
 from chromadb import Client
@@ -362,14 +362,14 @@ def save_expert(expert_title: str, expert_description: str):
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
-# Função para extrair texto de PDFs
+# Função para extrair texto de PDFs usando PyPDF2
 def extract_text_from_pdf(file):
     try:
-        pdf_document = fitz.open(file)
+        pdf_document = PdfFileReader(file)
         text = ""
-        for page_num in range(pdf_document.page_count):
-            page = pdf_document.load_page(page_num)
-            text += page.get_text("text")
+        for page_num in range(pdf_document.getNumPages()):
+            page = pdf_document.getPage(page_num)
+            text += page.extract_text()
         return text
     except Exception as e:
         st.error(f"Erro ao extrair texto do PDF: {e}")
