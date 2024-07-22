@@ -1,5 +1,4 @@
-
---upgrade pip
+pip
 streamlit
 requests
 beautifulsoup4
