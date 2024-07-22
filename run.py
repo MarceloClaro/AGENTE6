@@ -1,14 +1,18 @@
-import json
 import os
-import time
+import pdfplumber
+import json
+import re
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
 import streamlit as st
 from typing import Tuple
 from groq import Groq
+import time
+import seaborn as sns
+import matplotlib.pyplot as plt
 import base64
-import fitz  # PyMuPDF
+import shutil
+import ipywidgets as widgets
+from IPython.display import display
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -334,7 +338,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             f"原始问题如下：{user_input} 和 {user_prompt}。 "
             f"专家用葡萄牙语提供的回答如下：{assistant_response}。 "
             f"因此，请仔细评估专家用葡萄牙语提供的回答的质量和准确性，"
-            f"考虑提供的描述和专家提供 as respostas。 "
+            f"考虑提供的描述 e os dados fornecidos pelo especialista. "
             f"用葡萄牙语分析并提供详细解释："
             f"SWOT 分析（优势、劣势、机会、威胁）和数据解释，"
             f"风险矩阵，ANOVA（方差分析）和 dados de explicação，"
@@ -366,18 +370,57 @@ def save_expert(expert_title: str, expert_description: str):
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
-# Função para extrair texto de PDFs usando PyMuPDF
-def extract_text_from_pdf(file):
-    try:
-        pdf_document = fitz.open(file)
-        text = ""
-        for page_num in range(len(pdf_document)):
-            page = pdf_document.load_page(page_num)
-            text += page.get_text()
-        return text
-    except Exception as e:
-        st.error(f"Erro ao extrair texto do PDF: {e}")
-        return ""
+# Função para extrair texto de PDFs usando pdfplumber
+def extrair_texto_pdf_intervalos(file, pagina_inicial, pagina_final, limite_paginas):
+    intervalos_texto = []
+    with pdfplumber.open(file) as pdf:
+        for inicio_intervalo in range(pagina_inicial - 1, min(pagina_final, len(pdf.pages)), limite_paginas):
+            fim_intervalo = min(inicio_intervalo + limite_paginas, pagina_final)
+            texto_intervalo = []
+            for num_pagina in range(inicio_intervalo, fim_intervalo):
+                pagina = pdf.pages[num_pagina]
+                texto_pagina = pagina.extract_text()
+                if texto_pagina:
+                    texto_intervalo.append(texto_pagina)
+            intervalos_texto.append(" ".join(texto_intervalo))
+    return intervalos_texto
+
+# Função para identificar seções com base em expressões regulares
+def identificar_secoes(texto, secao_inicial):
+    secoes = {}
+    secao_atual = secao_inicial
+    secoes[secao_atual] = ""
+
+    paragrafos = texto.split('\n')
+    for paragrafo in paragrafos:
+        match = re.match(r'Parte \d+\.', paragrafo) or re.match(r'Capítulo \d+: .*', paragrafo) or re.match(r'\d+\.\d+ .*', paragrafo)
+        if match:
+            secao_atual = match.group()
+            secoes[secao_atual] = ""
+        else:
+            secoes[secao_atual] += paragrafo + "\n"
+
+    return secoes
+
+# Função para salvar os dados em um arquivo JSON
+def salvar_como_json(dados, caminho_saida):
+    with open(caminho_saida, 'w', encoding='utf-8') as file:
+        json.dump(dados, file, ensure_ascii=False, indent=4)
+
+# Função para processar e salvar cada intervalo como JSON
+def processar_e_salvar(intervalos_texto, secao_inicial, caminho_pasta_base, nome_arquivo):
+    for i, texto_intervalo in enumerate(intervalos_texto):
+        secoes = identificar_secoes(texto_intervalo, secao_inicial)
+        caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}_{i}.json")
+        salvar_como_json(secoes, caminho_saida)
+
+# Função para converter texto em DataFrame
+def text_to_dataframe(text):
+    lines = text.split('\n')
+    # Adaptação para lidar com texto tabular
+    data = [line.split() for line in lines if line.strip()]
+    df = pd.DataFrame(data)
+    return df
 
 # Função para fazer upload e extração de textos de arquivos JSON ou PDF
 def upload_and_extract_references(uploaded_file):
@@ -386,8 +429,9 @@ def upload_and_extract_references(uploaded_file):
         if uploaded_file.name.endswith('.json'):
             references = json.load(uploaded_file)
         elif uploaded_file.name.endswith('.pdf'):
-            text = extract_text_from_pdf(uploaded_file)
-            references = {"text": text}
+            intervalos_texto = extrair_texto_pdf_intervalos(uploaded_file, 1, 1000, 10)
+            df = pd.concat([text_to_dataframe(texto) for texto in intervalos_texto], ignore_index=True)
+            return df
         with open("references.json", 'w') as file:
             json.dump(references, file, indent=4)
         return "references.json"
@@ -454,9 +498,10 @@ with col2:
 
     if fetch_clicked:
         if references_file:
-            references_path = upload_and_extract_references(references_file)
-            references = json.load(open(references_path))
-            st.session_state.references_path = references_path
+            df = upload_and_extract_references(references_file)
+            st.write("### Dados Extraídos do PDF")
+            st.dataframe(df)
+            st.session_state.references_path = "references.json"
 
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number)
         st.session_state.resposta_original = st.session_state.resposta_assistente
