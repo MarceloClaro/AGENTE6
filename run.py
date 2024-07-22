@@ -384,7 +384,7 @@ def upload_and_extract_references(uploaded_file):
 def load_references():
     try:
         if os.path.exists(REFERENCES_FILE):
-            with open(REFERENCES_FILE, 'r') as file):
+            with open(REFERENCES_FILE, 'r') as file:
                 references = json.load(file)
             return references
         return {}
