@@ -183,7 +183,6 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     expert_title = ""
     expert_description = ""
     try:
-        client = Client(Settings(chroma_api_impl="chromadb.api.fastapi.FastAPI", chroma_server_host="localhost", chroma_server_http_port=8000))
         def get_completion(prompt: str) -> str:
             start_time = time.time()
             while True:
@@ -239,7 +238,6 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 # Função para refinar resposta
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Client(Settings(chroma_api_impl="chromadb.api.fastapi.FastAPI", chroma_server_host="localhost", chroma_server_http_port=8000))
         def get_completion(prompt: str) -> str:
             start_time = time.time()
             while True:
@@ -281,7 +279,6 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 # Função para avaliar resposta com RAG
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Client(Settings(chroma_api_impl="chromadb.api.fastapi.FastAPI", chroma_server_host="localhost", chroma_server_http_port=8000))
         def get_completion(prompt: str) -> str:
             start_time = time.time()
             while True:
@@ -386,7 +383,7 @@ def upload_and_extract_references(uploaded_file):
 def load_references():
     try:
         if os.path.exists(REFERENCES_FILE):
-            with open(REFERENCES_FILE, 'r') as file):
+            with open(REFERENCES_FILE, 'r') as file:
                 references = json.load(file)
             return references
         return {}
@@ -426,8 +423,8 @@ agent_options = load_agent_options()
 # Layout da página
 st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteligência Artificial - Geomaker. "A melhor forma de prever o futuro é inventá-lo." - Alan Kay', use_column_width='always', output_format='auto')
 st.markdown("<h1 style='text-align: center;'>Agentes Alan Kay</h1>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão.</h2>", unsafe_allow_html=True)
-st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão.</h2>", unsafe.allow_html=True)
+st.markdown("<hr>", unsafe.allow_html=True)
 st.markdown("<h2 style='text-align: center;'>Descubra como nossa plataforma pode revolucionar a educação.</h2>", unsafe.allow_html=True)
 
 with st.expander("Clique para saber mais sobre os Agentes Alan Kay."):
@@ -609,3 +606,4 @@ if selected_mp3 and play_button:
             audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
     except FileNotFoundError:
         audio_placeholder.error(f"Arquivo {mp3_path} não encontrado.")
+
