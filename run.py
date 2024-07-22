@@ -5,14 +5,10 @@ import re
 import pandas as pd
 import streamlit as st
 from typing import Tuple
-from groq import Groq
 import time
 import seaborn as sns
 import matplotlib.pyplot as plt
 import base64
-import shutil
-import ipywidgets as widgets
-from IPython.display import display
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -47,7 +43,7 @@ def get_api_key(action: str) -> str:
     if keys:
         return keys.pop(0)
     else:
-        raise ValueError(f"No API keys available for action: {action}")
+        raise ValueError(f"Nenhuma chave de API disponível para a ação: {action}")
 
 # Função para carregar opções de agentes
 def load_agent_options() -> list:
