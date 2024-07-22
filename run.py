@@ -43,7 +43,7 @@ def get_api_key(action: str) -> str:
     if keys:
         return keys.pop(0)
     else:
-        raise ValueError(f"Nenhuma chave de API disponível para a ação: {action}")
+        raise ValueError(f"No API keys available for action: {action}")
 
 # Função para carregar opções de agentes
 def load_agent_options() -> list:
