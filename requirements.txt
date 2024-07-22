@@ -14,3 +14,4 @@ chromadb
 PyMuPDF
 frontend
 starlette
+sqlite3 libsqlite3-dev
