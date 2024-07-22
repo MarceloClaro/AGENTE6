@@ -6,11 +6,13 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
 from typing import Tuple
-from chromadb.config import Settings
-from chromadb import Client
 import base64
 from PyPDF2 import PdfFileReader
 from sentence_transformers import SentenceTransformer
+
+# Importando SQLite4 e pandas-sqlite3
+import sqlite4 as sqlite
+import pandas_sqlite3
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -18,6 +20,17 @@ st.set_page_config(
     page_icon="logo.png",
     layout="wide",
 )
+
+# Tentativa de importação da biblioteca ChromaDB com tratamento de exceção
+try:
+    from chromadb.config import Settings
+    from chromadb import Client
+except ImportError as e:
+    st.error(f"Erro ao importar a biblioteca ChromaDB: {e}")
+    raise
+except RuntimeError as e:
+    st.error(f"Erro na configuração da biblioteca ChromaDB: {e}")
+    raise
 
 # Definição de caminhos para arquivos
 FILEPATH = "agents.json"
@@ -321,7 +334,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             f"原始问题如下：{user_input} 和 {user_prompt}。 "
             f"专家用葡萄牙语提供的回答如下：{assistant_response}。 "
             f"因此，请仔细评估专家用葡萄牙语提供的回答的质量和准确性，"
-            f"考虑提供的描述 e especialistas提供的 respostas。 "
+            f"考虑提供的描述 e especialistas提供 as respostas。 "
             f"用葡萄牙语分析并提供详细解释："
             f"SWOT 分析（优势、劣势、机会、威胁）和数据解释，"
             f"风险矩阵，ANOVA（方差分析）和数据解释，"
