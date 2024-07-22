@@ -6,7 +6,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
 from typing import Tuple
-from groq import Groq
+from chromadb.config import Settings
+from chromadb import Client
 import base64
 from PyPDF2 import PdfFileReader
 from sentence_transformers import SentenceTransformer
@@ -17,17 +18,6 @@ st.set_page_config(
     page_icon="logo.png",
     layout="wide",
 )
-
-# Tentativa de importação da biblioteca ChromaDB com tratamento de exceção
-try:
-    from chromadb.config import Settings
-    from chromadb import Client
-except ImportError as e:
-    st.error(f"Erro ao importar a biblioteca ChromaDB: {e}")
-    raise
-except RuntimeError as e:
-    st.error(f"Erro na configuração da biblioteca ChromaDB: {e}")
-    raise
 
 # Definição de caminhos para arquivos
 FILEPATH = "agents.json"
@@ -53,7 +43,10 @@ API_KEYS = {
 # Função para obter a próxima chave de API disponível
 def get_api_key(action: str) -> str:
     keys = API_KEYS[action]
-    return keys.pop(0)
+    if keys:
+        return keys.pop(0)
+    else:
+        raise ValueError(f"No API keys available for action '{action}'")
 
 # Função para carregar opções de agentes
 def load_agent_options() -> list:
@@ -97,11 +90,14 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
 # Função para lidar com limite de taxa
 def handle_rate_limit(error_message: str, action: str):
     if 'rate_limit_exceeded' in error_message:
-        wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
-        st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
-        time.sleep(wait_time)
-        # Alterna para a próxima chave de API disponível
-        API_KEYS[action].append(API_KEYS[action].pop(0))
+        try:
+            wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
+            st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
+            time.sleep(wait_time)
+            # Alterna para a próxima chave de API disponível
+            API_KEYS[action].append(API_KEYS[action].pop(0))
+        except Exception as e:
+            st.error(f"Erro ao processar limite de taxa: {e}")
     else:
         raise Exception(error_message)
 
@@ -187,8 +183,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     expert_title = ""
     expert_description = ""
     try:
-        client = Groq(api_key=get_api_key('fetch'))
-
+        client = Client(Settings())
         def get_completion(prompt: str) -> str:
             start_time = time.time()
             while True:
@@ -215,9 +210,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                     handle_rate_limit(str(e), 'fetch')
 
         if agent_selection == "Escolher um especialista...":
-            phase_one_prompt = (
-                f"Descreva o especialista ideal para responder a seguinte solicitação: {user_input} e {user_prompt}."
-            )
+            phase_one_prompt = f"Descreva o especialista ideal para responder a seguinte solicitação: {user_input} e {user_prompt}."
             phase_one_response = get_completion(phase_one_prompt)
             first_period_index = phase_one_response.find(".")
             expert_title = phase_one_response[:first_period_index].strip()
@@ -234,11 +227,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                     raise ValueError("Especialista selecionado não encontrado no arquivo.")
 
         history_context = "\n".join([f"Usuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}" for entry in chat_history])
-
-        phase_two_prompt = (
-            f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
-            f"\n\nHistórico do chat:{history_context}"
-        )
+        phase_two_prompt = f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}.\n\nHistórico do chat:{history_context}"
         phase_two_response = get_completion(phase_two_prompt)
 
     except Exception as e:
@@ -250,8 +239,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 # Função para refinar resposta
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Groq(api_key=get_api_key('refine'))
-
+        client = Client(Settings())
         def get_completion(prompt: str) -> str:
             start_time = time.time()
             while True:
@@ -278,11 +266,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                     handle_rate_limit(str(e), 'refine')
 
         history_context = "\n".join([f"Usuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}" for entry in chat_history])
-
-        refine_prompt = (
-            f"{expert_title}, refine a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
-            f"\n\nHistórico do chat:{history_context}"
-        )
+        refine_prompt = f"{expert_title}, refine a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}.\n\nHistórico do chat:{history_context}"
 
         if not references_file:
             refine_prompt += "\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
@@ -297,8 +281,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 # Função para avaliar resposta com RAG
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Groq(api_key=get_api_key('evaluate'))
-
+        client = Client(Settings())
         def get_completion(prompt: str) -> str:
             start_time = time.time()
             while True:
@@ -325,7 +308,6 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
                     handle_rate_limit(str(e), 'evaluate')
 
         history_context = "\n".join([f"Usuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}" for entry in chat_history])
-
         rag_prompt = (
             f"结果和答案必须翻译成巴西葡萄牙语。Obrigatóriamente em Português! "
             f"扮演一个理性生成器 (RAG) 的角色，站在人工智能和理性评估的前沿，"
