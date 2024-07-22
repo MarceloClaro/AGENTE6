@@ -424,20 +424,21 @@ def text_to_dataframe(text):
 
 # Função para fazer upload e extração de textos de arquivos JSON ou PDF
 def upload_and_extract_references(uploaded_file):
-    references = {}
     try:
         if uploaded_file.name.endswith('.json'):
-            references = json.load(uploaded_file)
+            with open(uploaded_file, 'r') as file:
+                references = json.load(file)
+                return pd.DataFrame(references)
         elif uploaded_file.name.endswith('.pdf'):
             intervalos_texto = extrair_texto_pdf_intervalos(uploaded_file, 1, 1000, 10)
             df = pd.concat([text_to_dataframe(texto) for texto in intervalos_texto], ignore_index=True)
             return df
-        with open("references.json", 'w') as file:
-            json.dump(references, file, indent=4)
-        return "references.json"
+        else:
+            st.error("Formato de arquivo não suportado.")
+            return None
     except Exception as e:
         st.error(f"Erro ao carregar e extrair referências: {e}")
-        return ""
+        return None
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
