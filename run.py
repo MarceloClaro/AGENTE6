@@ -7,12 +7,11 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from typing import Tuple
 import base64
-from PyPDF2 import PdfFileReader
+from PyPDF2 import PdfReader
 from sentence_transformers import SentenceTransformer
-
-# Importando SQLite4 e pandas-sqlite3
-import sqlite4 as sqlite
-import pandas_sqlite3
+from chromadb.api.fastapi import FastAPI
+from chromadb.config import Settings
+from chromadb import Client
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -20,17 +19,6 @@ st.set_page_config(
     page_icon="logo.png",
     layout="wide",
 )
-
-# Tentativa de importação da biblioteca ChromaDB com tratamento de exceção
-try:
-    from chromadb.config import Settings
-    from chromadb import Client
-except ImportError as e:
-    st.error(f"Erro ao importar a biblioteca ChromaDB: {e}")
-    raise
-except RuntimeError as e:
-    st.error(f"Erro na configuração da biblioteca ChromaDB: {e}")
-    raise
 
 # Definição de caminhos para arquivos
 FILEPATH = "agents.json"
@@ -196,7 +184,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     expert_title = ""
     expert_description = ""
     try:
-        client = Client(Settings())
+        client = Client(Settings(chroma_api_impl=FastAPI))
         def get_completion(prompt: str) -> str:
             start_time = time.time()
             while True:
@@ -252,7 +240,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 # Função para refinar resposta
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Client(Settings())
+        client = Client(Settings(chroma_api_impl=FastAPI))
         def get_completion(prompt: str) -> str:
             start_time = time.time()
             while True:
@@ -294,7 +282,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 # Função para avaliar resposta com RAG
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Client(Settings())
+        client = Client(Settings(chroma_api_impl=FastAPI))
         def get_completion(prompt: str) -> str:
             start_time = time.time()
             while True:
@@ -369,10 +357,10 @@ def save_expert(expert_title: str, expert_description: str):
 # Função para extrair texto de PDFs usando PyPDF2
 def extract_text_from_pdf(file):
     try:
-        pdf_document = PdfFileReader(file)
+        pdf_document = PdfReader(file)
         text = ""
-        for page_num in range(pdf_document.getNumPages()):
-            page = pdf_document.getPage(page_num)
+        for page_num in range(len(pdf_document.pages)):
+            page = pdf_document.pages[page_num]
             text += page.extract_text()
         return text
     except Exception as e:
@@ -412,7 +400,7 @@ def process_references(references):
     try:
         model = SentenceTransformer('all-MiniLM-L6-v2')
         texts = references.get("text", "").split('\n')
-        chunks = [texts[i:i + 10] for i in range(0, len(texts), 10)]
+        chunks = [texts[i:i + 10] for i in range(0, len(texts), 10) if texts[i:i + 10]]
         embeddings = model.encode(chunks)
         return embeddings, chunks
     except Exception as e:
@@ -422,7 +410,7 @@ def process_references(references):
 # Função para salvar embeddings em ChromaDB
 def save_embeddings_to_chromadb(embeddings, chunks):
     try:
-        chroma_client = Client(Settings())
+        chroma_client = Client(Settings(chroma_api_impl=FastAPI))
         collection = chroma_client.create_collection('references')
         for i, (embedding, chunk) in enumerate(zip(embeddings, chunks)):
             collection.insert(embedding, {"text": chunk, "id": str(i)})
