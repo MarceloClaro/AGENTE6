@@ -8,4 +8,6 @@ pysqlite3-binary
 PyPDF2
 matplotlib
 seaborn
-
+sentence_transformers
+fitz
+chromadb
