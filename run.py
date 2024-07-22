@@ -10,7 +10,8 @@ from groq import Groq
 import base64
 import fitz  # PyMuPDF
 from sentence_transformers import SentenceTransformer
-from chromadb import Client, Settings
+from chromadb.config import Settings
+from chromadb import Client
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -223,9 +224,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 else:
                     raise ValueError("Especialista selecionado não encontrado no arquivo.")
 
-        history_context = ""
-        for entry in chat_history:
-            history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
+        history_context = "\n".join([f"Usuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}" for entry in chat_history])
 
         phase_two_prompt = (
             f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
@@ -269,9 +268,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 except Exception as e:
                     handle_rate_limit(str(e), 'refine')
 
-        history_context = ""
-        for entry in chat_history:
-            history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
+        history_context = "\n".join([f"Usuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}" for entry in chat_history])
 
         refine_prompt = (
             f"{expert_title}, refine a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
@@ -279,9 +276,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         )
 
         if not references_file:
-            refine_prompt += (
-                f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
-            )
+            refine_prompt += "\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
 
         refined_response = get_completion(refine_prompt)
         return refined_response
@@ -320,9 +315,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
                 except Exception as e:
                     handle_rate_limit(str(e), 'evaluate')
 
-        history_context = ""
-        for entry in chat_history:
-            history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
+        history_context = "\n".join([f"Usuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}" for entry in chat_history])
 
         rag_prompt = (
             f"结果和答案必须翻译成巴西葡萄牙语。Obrigatóriamente em Português! "
@@ -344,7 +337,6 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             f"Q 统计和数据解释，以及 Q 指数和数据解释。"
             f"每段保持 4 句话，每句用逗号分隔，始终遵循亚里士多德和苏格拉底的最佳教育实践。"
             f"所有答案必须使用巴西葡萄牙语。a saida obrigatoriamente na lingua portuguesa"
-
         )
 
         rag_response = get_completion(rag_prompt)
@@ -370,44 +362,52 @@ def save_expert(expert_title: str, expert_description: str):
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
-# Função para processar PDF e extrair texto
+# Função para extrair texto de PDFs
 def extract_text_from_pdf(file):
-    pdf_document = fitz.open(stream=file.read(), filetype="pdf")
+    pdf_document = fitz.open(file)
     text = ""
     for page_num in range(pdf_document.page_count):
         page = pdf_document.load_page(page_num)
-        text += page.get_text()
+        text += page.get_text("text")
     return text
 
-# Função para processar e salvar referências
-def process_and_save_references(uploaded_file, references_path=REFERENCES_FILE):
-    if uploaded_file.name.endswith('.pdf'):
+# Função para fazer upload e extração de textos de arquivos JSON ou PDF
+def upload_and_extract_references(uploaded_file):
+    references = {}
+    if uploaded_file.name.endswith('.json'):
+        references = json.load(uploaded_file)
+    elif uploaded_file.name.endswith('.pdf'):
         text = extract_text_from_pdf(uploaded_file)
-    elif uploaded_file.name.endswith('.json'):
-        text = uploaded_file.read().decode('utf-8')
-    else:
-        st.error("Formato de arquivo não suportado. Por favor, faça upload de um arquivo PDF ou JSON.")
-        return None
+        references = {"text": text}
+    
+    with open(REFERENCES_FILE, 'w') as file:
+        json.dump(references, file, indent=4)
 
-    data = {"content": text}
-    with open(references_path, 'w') as file:
-        json.dump(data, file, indent=4)
-    return references_path
+    return REFERENCES_FILE
 
 # Função para carregar referências
-def load_references(references_path=REFERENCES_FILE):
-    if os.path.exists(references_path):
-        with open(references_path, 'r') as file:
+def load_references():
+    if os.path.exists(REFERENCES_FILE):
+        with open(REFERENCES_FILE, 'r') as file:
             references = json.load(file)
-        return references['content']
-    return ""
+        return references
+    return {}
 
-# Função para criar embeddings e chunks
-def create_embeddings_and_chunks(text):
-    model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
-    sentences = text.split('\n')
-    embeddings = model.encode(sentences)
-    return sentences, embeddings
+# Função para carregar embeddings e dividir o texto em chunks
+def process_references(references):
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    texts = references.get("text", "").split('\n')
+    chunks = [texts[i:i + 10] for i in range(0, len(texts), 10)]
+    embeddings = model.encode(chunks)
+    return embeddings, chunks
+
+# Função para salvar embeddings em ChromaDB
+def save_embeddings_to_chromadb(embeddings, chunks):
+    chroma_client = Client(Settings())
+    collection = chroma_client.create_collection('references')
+    for i, (embedding, chunk) in enumerate(zip(embeddings, chunks)):
+        collection.insert(embedding, {"text": chunk, "id": str(i)})
+    return collection
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
@@ -468,11 +468,12 @@ with col2:
 
     if fetch_clicked:
         if references_file:
-            references_path = process_and_save_references(references_file)
-            references_content = load_references(references_path)
-        else:
-            references_content = ""
-            st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas.")
+            references_path = upload_and_extract_references(references_file)
+            references = load_references()
+            embeddings, chunks = process_references(references)
+            save_embeddings_to_chromadb(embeddings, chunks)
+            st.session_state.references_path = references_path
+
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number)
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
