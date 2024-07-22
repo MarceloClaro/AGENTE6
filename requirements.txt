@@ -15,4 +15,5 @@ chromadb
 PyMuPDF
 frontend
 starlette
-sqlite
+pysqlite3-binary
+
