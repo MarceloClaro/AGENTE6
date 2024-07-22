@@ -388,7 +388,8 @@ def extrair_texto_pdf_intervalos(file, pagina_inicial, pagina_final, limite_pagi
                 texto_pagina = pagina.extract_text()
                 if texto_pagina:
                     texto_intervalo.append(texto_pagina)
-            intervalos_texto.append(" ".join(texto_intervalo))
+            if texto_intervalo:
+                intervalos_texto.append(" ".join(texto_intervalo))
     return intervalos_texto
 
 # Função para identificar seções com base em expressões regulares
@@ -423,9 +424,11 @@ def processar_e_salvar(intervalos_texto, secao_inicial, caminho_pasta_base, nome
 # Função para converter texto em DataFrame
 def text_to_dataframe(text):
     lines = text.split('\n')
-    # Adaptação para lidar com texto tabular
     data = [line.split() for line in lines if line.strip()]
-    df = pd.DataFrame(data)
+    if data:
+        df = pd.DataFrame(data)
+    else:
+        df = pd.DataFrame()
     return df
 
 # Função para fazer upload e extração de textos de arquivos JSON ou PDF
@@ -439,11 +442,16 @@ def upload_and_extract_references(uploaded_file):
             return "references.json"
         elif uploaded_file.name.endswith('.pdf'):
             intervalos_texto = extrair_texto_pdf_intervalos(uploaded_file, 1, 1000, 10)
-            df = pd.concat([text_to_dataframe(texto) for texto in intervalos_texto], ignore_index=True)
-            return df
+            dfs = [text_to_dataframe(texto) for texto in intervalos_texto if texto]
+            if dfs:
+                df = pd.concat(dfs, ignore_index=True)
+                return df
+            else:
+                st.error("Nenhum texto extraído do PDF.")
+                return pd.DataFrame()
     except Exception as e:
         st.error(f"Erro ao carregar e extrair referências: {e}")
-        return ""
+        return pd.DataFrame()
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
