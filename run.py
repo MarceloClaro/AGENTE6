@@ -1,6 +1,7 @@
+import subprocess
+import time
 import json
 import os
-import time
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -20,26 +21,13 @@ st.set_page_config(
     layout="wide",
 )
 
-# Definição de caminhos para arquivos
-FILEPATH = "agents.json"
-CHAT_HISTORY_FILE = 'chat_history.json'
-API_USAGE_FILE = 'api_usage.json'
-REFERENCES_FILE = 'references.json'
+# Função para iniciar o servidor ChromaDB
+def start_chromadb_server():
+    subprocess.Popen(['chromadb', 'serve', '--host', '0.0.0.0', '--port', '8000'])
+    time.sleep(5)  # Esperar alguns segundos para garantir que o servidor está em execução
 
-# Definição de modelos e tokens
-MODEL_MAX_TOKENS = {
-    'mixtral-8x7b-32768': 32768,
-    'llama3-70b-8192': 8192,
-    'llama3-8b-8192': 8192,
-    'gemma-7b-it': 8192,
-}
-
-# Chaves da API
-API_KEYS = {
-    "fetch": ["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", "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"],
-    "refine": ["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", "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"],
-    "evaluate": ["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", "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"]
-}
+# Iniciar o servidor ChromaDB
+start_chromadb_server()
 
 # Função para obter a próxima chave de API disponível
 def get_api_key(action: str) -> str:
@@ -387,7 +375,7 @@ def upload_and_extract_references(uploaded_file):
 def load_references():
     try:
         if os.path.exists(REFERENCES_FILE):
-            with open(REFERENCES_FILE, 'r') as file:
+            with open(REFERENCES_FILE, 'r') as file):
                 references = json.load(file)
             return references
         return {}
