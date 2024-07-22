@@ -8,7 +8,7 @@ import streamlit as st
 from typing import Tuple
 from groq import Groq
 import base64
-import fitz  # PyMuPDF
+import PyMuPDF
 from sentence_transformers import SentenceTransformer
 from chromadb.config import Settings
 from chromadb import Client
