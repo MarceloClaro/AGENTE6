@@ -12,3 +12,4 @@ sentence_transformers
 fitz
 chromadb
 PyMuPDF
+frontend
