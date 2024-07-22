@@ -171,29 +171,6 @@ def reset_api_usage():
         os.remove(API_USAGE_FILE)
     st.success("Os dados de uso da API foram resetados.")
 
-# Função para extrair texto de PDF
-def extract_text_from_pdf(pdf_file) -> str:
-    pdf_reader = fitz.open(stream=pdf_file.read(), filetype="pdf")
-    text = ""
-    for page_num in range(len(pdf_reader)):
-        page = pdf_reader.load_page(page_num)
-        text += page.get_text()
-    return text
-
-# Função para salvar referências
-def save_references(text: str, references_file=REFERENCES_FILE):
-    references = {"text": text}
-    with open(references_file, 'w') as file:
-        json.dump(references, file, indent=4)
-
-# Função para carregar referências
-def load_references(references_file=REFERENCES_FILE):
-    if os.path.exists(references_file):
-        with open(references_file, 'r') as file:
-            references = json.load(file)
-        return references["text"]
-    return ""
-
 # Função para buscar resposta do assistente
 def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, interaction_number: int) -> Tuple[str, str]:
     phase_two_response = ""
@@ -263,7 +240,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     return expert_title, phase_two_response
 
 # Função para refinar resposta
-def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_text: str, chat_history: list, interaction_number: int) -> str:
+def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list, interaction_number: int) -> str:
     try:
         client = Groq(api_key=get_api_key('refine'))
 
@@ -299,8 +276,12 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         refine_prompt = (
             f"{expert_title}, refine a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
             f"\n\nHistórico do chat:{history_context}"
-            f"\n\nReferências: {references_text}"
         )
+
+        if not references_file:
+            refine_prompt += (
+                f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
+            )
 
         refined_response = get_completion(refine_prompt)
         return refined_response
@@ -389,6 +370,45 @@ def save_expert(expert_title: str, expert_description: str):
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
+# Função para processar PDF e extrair texto
+def extract_text_from_pdf(file):
+    pdf_document = fitz.open(stream=file.read(), filetype="pdf")
+    text = ""
+    for page_num in range(pdf_document.page_count):
+        page = pdf_document.load_page(page_num)
+        text += page.get_text()
+    return text
+
+# Função para processar e salvar referências
+def process_and_save_references(uploaded_file, references_path=REFERENCES_FILE):
+    if uploaded_file.name.endswith('.pdf'):
+        text = extract_text_from_pdf(uploaded_file)
+    elif uploaded_file.name.endswith('.json'):
+        text = uploaded_file.read().decode('utf-8')
+    else:
+        st.error("Formato de arquivo não suportado. Por favor, faça upload de um arquivo PDF ou JSON.")
+        return None
+
+    data = {"content": text}
+    with open(references_path, 'w') as file:
+        json.dump(data, file, indent=4)
+    return references_path
+
+# Função para carregar referências
+def load_references(references_path=REFERENCES_FILE):
+    if os.path.exists(references_path):
+        with open(references_path, 'r') as file:
+            references = json.load(file)
+        return references['content']
+    return ""
+
+# Função para criar embeddings e chunks
+def create_embeddings_and_chunks(text):
+    model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
+    sentences = text.split('\n')
+    embeddings = model.encode(sentences)
+    return sentences, embeddings
+
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
 
@@ -447,22 +467,20 @@ with col2:
     chat_history = load_chat_history()[-memory_selection:]
 
     if fetch_clicked:
-        references_text = ""
-        if references_file is not None:
-            if references_file.type == "application/json":
-                references_text = json.load(references_file)
-            elif references_file.type == "application/pdf":
-                references_text = extract_text_from_pdf(references_file)
-                save_references(references_text)
+        if references_file:
+            references_path = process_and_save_references(references_file)
+            references_content = load_references(references_path)
+        else:
+            references_content = ""
+            st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas.")
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number)
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
         save_chat_history(user_input, user_prompt, st.session_state.resposta_assistente)
 
     if refine_clicked:
-        references_text = load_references()
         if st.session_state.resposta_assistente:
-            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_text, chat_history, interaction_number)
+            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_file, chat_history, interaction_number)
             save_chat_history(user_input, user_prompt, st.session_state.resposta_refinada)
         else:
             st.warning("Por favor, busque uma resposta antes de refinar.")
