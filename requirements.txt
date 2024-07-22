@@ -1,6 +1,9 @@
 pip==24.1.2
 streamlit==1.36.0
 requests
+pandas-sqlite3
+chromadb-client
+chromadb
 runhouse
 beautifulsoup4
 groq==0.9.0
@@ -17,4 +20,3 @@ starlette
 transformers
 llm-sentence-transformers
 SQLite4
-pandas-sqlite3
