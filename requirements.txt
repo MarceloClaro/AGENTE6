@@ -1,6 +1,7 @@
 pip==24.1.2
 streamlit==1.36.0
 requests
+faiss-cpu
 pandas-sqlite3
 chromadb-client
 chromadb
