@@ -10,8 +10,7 @@ from groq import Groq
 import base64
 import fitz  # PyMuPDF
 from sentence_transformers import SentenceTransformer
-from chromadb.config import Settings
-from chromadb import Client
+from chromadb import Client, Settings
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -368,55 +367,27 @@ def save_expert(expert_title: str, expert_description: str):
             file.seek(0)
             json.dump(agents, file, indent=4)
     else:
-        with open(FILEPATH, 'w') as file):
+        with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
-# Função para extrair texto de PDFs
-def extract_text_from_pdf(file):
-    pdf_document = fitz.open(file)
+# Função para extrair texto de PDF e salvar como JSON
+def extract_text_from_pdf(pdf_file) -> str:
+    references_path = REFERENCES_FILE
     text = ""
-    for page_num in range(pdf_document.page_count):
-        page = pdf_document.load_page(page_num)
-        text += page.get_text("text")
-    return text
+    with fitz.open(stream=pdf_file.read(), filetype="pdf") as doc:
+        for page in doc:
+            text += page.get_text()
+    with open(references_path, 'w') as file:
+        json.dump({"text": text}, file, indent=4)
+    return references_path
 
-# Função para fazer upload e extração de textos de arquivos JSON ou PDF
-def upload_and_extract_references(uploaded_file):
-    references = {}
-    if uploaded_file.name.endswith('.json'):
-        references = json.load(uploaded_file)
-    elif uploaded_file.name.endswith('.pdf'):
-        text = extract_text_from_pdf(uploaded_file)
-        references = {"text": text}
-    
-    with open(REFERENCES_FILE, 'w') as file:
-        json.dump(references, file, indent=4)
-
-    return REFERENCES_FILE
-
-# Função para carregar referências
+# Função para carregar referências do arquivo JSON
 def load_references():
     if os.path.exists(REFERENCES_FILE):
         with open(REFERENCES_FILE, 'r') as file:
             references = json.load(file)
         return references
-    return {}
-
-# Função para carregar embeddings e dividir o texto em chunks
-def process_references(references):
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-    texts = references.get("text", "").split('\n')
-    chunks = [texts[i:i + 10] for i in range(0, len(texts), 10)]
-    embeddings = model.encode(chunks)
-    return embeddings, chunks
-
-# Função para salvar embeddings em ChromaDB
-def save_embeddings_to_chromadb(embeddings, chunks):
-    chroma_client = Client(Settings())
-    collection = chroma_client.create_collection('references')
-    for i, (embedding, chunk) in enumerate(zip(embeddings, chunks)):
-        collection.insert(embedding, {"text": chunk, "id": str(i)})
-    return collection
+    return {"text": ""}
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
@@ -475,14 +446,19 @@ with col2:
 
     chat_history = load_chat_history()[-memory_selection:]
 
-    if fetch_clicked:
-        if references_file:
-            references_path = upload_and_extract_references(references_file)
-            references = load_references()
-            embeddings, chunks = process_references(references)
-            save_embeddings_to_chromadb(embeddings, chunks)
-            st.session_state.references_path = references_path
+    # Carrega referências, se um arquivo de referência foi enviado
+    if references_file:
+        if references_file.type == "application/json":
+            references_path = references_file
+        elif references_file.type == "application/pdf":
+            references_path = extract_text_from_pdf(references_file)
+        else:
+            st.error("Tipo de arquivo não suportado. Por favor, envie um arquivo JSON ou PDF.")
 
+    if fetch_clicked:
+        references = load_references()
+        if not references["text"]:
+            st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas.")
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number)
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
@@ -490,7 +466,8 @@ with col2:
 
     if refine_clicked:
         if st.session_state.resposta_assistente:
-            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_file, chat_history, interaction_number)
+            references = load_references()
+            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_path, chat_history, interaction_number)
             save_chat_history(user_input, user_prompt, st.session_state.resposta_refinada)
         else:
             st.warning("Por favor, busque uma resposta antes de refinar.")
