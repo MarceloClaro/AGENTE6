@@ -8,8 +8,9 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from typing import List, Tuple
 import base64
-from PyPDF2 import PdfReader  # Use PyPDF2 instead of fitz
+from PyPDF2 import PdfReader
 from sentence_transformers import SentenceTransformer
+import time  # Importando a biblioteca time
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -383,7 +384,7 @@ def upload_and_extract_references(uploaded_file):
 def load_references():
     try:
         if os.path.exists(REFERENCES_FILE):
-            with open(REFERENCES_FILE, 'r') as file:
+            with open(REFERENCES_FILE, 'r') as file):
                 references = json.load(file)
             return references
         return {}
