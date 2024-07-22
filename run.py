@@ -188,22 +188,14 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
             start_time = time.time()
             while True:
                 try:
-                    completion = client.chat.completions.create(
-                        messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},
-                            {"role": "user", "content": prompt},
-                        ],
-                        model=model_name,
-                        temperature=temperature,
-                        max_tokens=get_max_tokens(model_name),
-                        top_p=1,
-                        stop=None,
-                        stream=False
-                    )
+                    completion = {
+                        "usage": {"total_tokens": 100},  # Simulando uso de tokens
+                        "choices": [{"message": {"content": f"Resposta gerada para o prompt: {prompt}"}}]
+                    }
                     end_time = time.time()
-                    tokens_used = completion.usage.total_tokens
+                    tokens_used = completion["usage"]["total_tokens"]
                     time_taken = end_time - start_time
-                    api_response = completion.choices[0].message.content
+                    api_response = completion["choices"][0]["message"]["content"]
                     log_api_usage('fetch', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, expert_description)
                     return api_response
                 except Exception as e:
@@ -243,22 +235,14 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             start_time = time.time()
             while True:
                 try:
-                    completion = client.chat.completions.create(
-                        messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},
-                            {"role": "user", "content": prompt},
-                        ],
-                        model=model_name,
-                        temperature=temperature,
-                        max_tokens=get_max_tokens(model_name),
-                        top_p=1,
-                        stop=None,
-                        stream=False
-                    )
+                    completion = {
+                        "usage": {"total_tokens": 50},  # Simulando uso de tokens
+                        "choices": [{"message": {"content": f"Resposta refinada para o prompt: {prompt}"}}]
+                    }
                     end_time = time.time()
-                    tokens_used = completion.usage.total_tokens
+                    tokens_used = completion["usage"]["total_tokens"]
                     time_taken = end_time - start_time
-                    api_response = completion.choices[0].message.content
+                    api_response = completion["choices"][0]["message"]["content"]
                     log_api_usage('refine', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, "")
                     return api_response
                 except Exception as e:
@@ -284,22 +268,14 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             start_time = time.time()
             while True:
                 try:
-                    completion = client.chat.completions.create(
-                        messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},
-                            {"role": "user", "content": prompt},
-                        ],
-                        model=model_name,
-                        temperature=temperature,
-                        max_tokens=get_max_tokens(model_name),
-                        top_p=1,
-                        stop=None,
-                        stream=False
-                    )
+                    completion = {
+                        "usage": {"total_tokens": 70},  # Simulando uso de tokens
+                        "choices": [{"message": {"content": f"Resposta RAG gerada para o prompt: {prompt}"}}]
+                    }
                     end_time = time.time()
-                    tokens_used = completion.usage.total_tokens
+                    tokens_used = completion["usage"]["total_tokens"]
                     time_taken = end_time - start_time
-                    api_response = completion.choices[0].message.content
+                    api_response = completion["choices"][0]["message"]["content"]
                     log_api_usage('evaluate', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, expert_description)
                     return api_response
                 except Exception as e:
