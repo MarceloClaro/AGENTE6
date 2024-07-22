@@ -1,16 +1,13 @@
-import faiss
-import numpy as np
 import json
 import os
+import time
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
-from typing import List, Tuple
+from typing import Tuple
+from some_library import Client, Settings  # Substitua com a biblioteca correta
 import base64
-from PyPDF2 import PdfReader
-from sentence_transformers import SentenceTransformer
-import time
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -23,8 +20,6 @@ st.set_page_config(
 FILEPATH = "agents.json"
 CHAT_HISTORY_FILE = 'chat_history.json'
 API_USAGE_FILE = 'api_usage.json'
-REFERENCES_FILE = 'references.json'
-INDEX_FILE = 'faiss_index.bin'
 
 # Definição de modelos e tokens
 MODEL_MAX_TOKENS = {
@@ -34,7 +29,7 @@ MODEL_MAX_TOKENS = {
     'gemma-7b-it': 8192,
 }
 
-# Função para obter a próxima chave de API disponível
+# Chaves da API
 API_KEYS = {
     "fetch": ["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", "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"],
     "refine": ["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", "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"],
@@ -44,13 +39,10 @@ API_KEYS = {
 # Função para obter a próxima chave de API disponível
 def get_api_key(action: str) -> str:
     keys = API_KEYS[action]
-    if keys:
-        return keys.pop(0)
-    else:
-        raise ValueError(f"No API keys available for action '{action}'")
+    return keys.pop(0)
 
 # Função para carregar opções de agentes
-def load_agent_options() -> List[str]:
+def load_agent_options() -> list:
     agent_options = ['Escolher um especialista...']
     if os.path.exists(FILEPATH):
         with open(FILEPATH, 'r') as file:
@@ -91,14 +83,11 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
 # Função para lidar com limite de taxa
 def handle_rate_limit(error_message: str, action: str):
     if 'rate_limit_exceeded' in error_message:
-        try:
-            wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
-            st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
-            time.sleep(wait_time)
-            # Alterna para a próxima chave de API disponível
-            API_KEYS[action].append(API_KEYS[action].pop(0))
-        except Exception as e:
-            st.error(f"Erro ao processar limite de taxa: {e}")
+        wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
+        st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
+        time.sleep(wait_time)
+        # Alterna para a próxima chave de API disponível
+        API_KEYS[action].append(API_KEYS[action].pop(0))
     else:
         raise Exception(error_message)
 
@@ -184,25 +173,37 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     expert_title = ""
     expert_description = ""
     try:
+        client = Client(Settings(api_key=get_api_key('fetch')))
+
         def get_completion(prompt: str) -> str:
             start_time = time.time()
             while True:
                 try:
-                    completion = {
-                        "usage": {"total_tokens": 100},  # Simulando uso de tokens
-                        "choices": [{"message": {"content": f"Resposta gerada para o prompt: {prompt}"}}]
-                    }
+                    completion = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "user", "content": prompt},
+                        ],
+                        model=model_name,
+                        temperature=temperature,
+                        max_tokens=get_max_tokens(model_name),
+                        top_p=1,
+                        stop=None,
+                        stream=False
+                    )
                     end_time = time.time()
-                    tokens_used = completion["usage"]["total_tokens"]
+                    tokens_used = completion.usage.total_tokens
                     time_taken = end_time - start_time
-                    api_response = completion["choices"][0]["message"]["content"]
+                    api_response = completion.choices[0].message.content
                     log_api_usage('fetch', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, expert_description)
                     return api_response
                 except Exception as e:
                     handle_rate_limit(str(e), 'fetch')
 
         if agent_selection == "Escolher um especialista...":
-            phase_one_prompt = f"Descreva o especialista ideal para responder a seguinte solicitação: {user_input} e {user_prompt}."
+            phase_one_prompt = (
+                f"Descreva o especialista ideal para responder a seguinte solicitação: {user_input} e {user_prompt}."
+            )
             phase_one_response = get_completion(phase_one_prompt)
             first_period_index = phase_one_response.find(".")
             expert_title = phase_one_response[:first_period_index].strip()
@@ -218,8 +219,14 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 else:
                     raise ValueError("Especialista selecionado não encontrado no arquivo.")
 
-        history_context = "\n".join([f"Usuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}" for entry in chat_history])
-        phase_two_prompt = f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}.\n\nHistórico do chat:{history_context}"
+        history_context = ""
+        for entry in chat_history:
+            history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
+
+        phase_two_prompt = (
+            f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
+            f"\n\nHistórico do chat:{history_context}"
+        )
         phase_two_response = get_completion(phase_two_prompt)
 
     except Exception as e:
@@ -231,28 +238,46 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 # Função para refinar resposta
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list, interaction_number: int) -> str:
     try:
+        client = Client(Settings(api_key=get_api_key('refine')))
+
         def get_completion(prompt: str) -> str:
             start_time = time.time()
             while True:
                 try:
-                    completion = {
-                        "usage": {"total_tokens": 50},  # Simulando uso de tokens
-                        "choices": [{"message": {"content": f"Resposta refinada para o prompt: {prompt}"}}]
-                    }
+                    completion = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "user", "content": prompt},
+                        ],
+                        model=model_name,
+                        temperature=temperature,
+                        max_tokens=get_max_tokens(model_name),
+                        top_p=1,
+                        stop=None,
+                        stream=False
+                    )
                     end_time = time.time()
-                    tokens_used = completion["usage"]["total_tokens"]
+                    tokens_used = completion.usage.total_tokens
                     time_taken = end_time - start_time
-                    api_response = completion["choices"][0]["message"]["content"]
+                    api_response = completion.choices[0].message.content
                     log_api_usage('refine', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, "")
                     return api_response
                 except Exception as e:
                     handle_rate_limit(str(e), 'refine')
 
-        history_context = "\n".join([f"Usuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}" for entry in chat_history])
-        refine_prompt = f"{expert_title}, refine a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}.\n\nHistórico do chat:{history_context}"
+        history_context = ""
+        for entry in chat_history:
+            history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
+
+        refine_prompt = (
+            f"{expert_title}, refine a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
+            f"\n\nHistórico do chat:{history_context}"
+        )
 
         if not references_file:
-            refine_prompt += "\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
+            refine_prompt += (
+                f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
+            )
 
         refined_response = get_completion(refine_prompt)
         return refined_response
@@ -264,24 +289,37 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 # Função para avaliar resposta com RAG
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
     try:
+        client = Client(Settings(api_key=get_api_key('evaluate')))
+
         def get_completion(prompt: str) -> str:
             start_time = time.time()
             while True:
                 try:
-                    completion = {
-                        "usage": {"total_tokens": 70},  # Simulando uso de tokens
-                        "choices": [{"message": {"content": f"Resposta RAG gerada para o prompt: {prompt}"}}]
-                    }
+                    completion = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "user", "content": prompt},
+                        ],
+                        model=model_name,
+                        temperature=temperature,
+                        max_tokens=get_max_tokens(model_name),
+                        top_p=1,
+                        stop=None,
+                        stream=False
+                    )
                     end_time = time.time()
-                    tokens_used = completion["usage"]["total_tokens"]
+                    tokens_used = completion.usage.total_tokens
                     time_taken = end_time - start_time
-                    api_response = completion["choices"][0]["message"]["content"]
+                    api_response = completion.choices[0].message.content
                     log_api_usage('evaluate', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, expert_description)
                     return api_response
                 except Exception as e:
                     handle_rate_limit(str(e), 'evaluate')
 
-        history_context = "\n".join([f"Usuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}" for entry in chat_history])
+        history_context = ""
+        for entry in chat_history:
+            history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
+
         rag_prompt = (
             f"结果和答案必须翻译成巴西葡萄牙语。Obrigatóriamente em Português! "
             f"扮演一个理性生成器 (RAG) 的角色，站在人工智能和理性评估的前沿，"
@@ -295,13 +333,14 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             f"原始问题如下：{user_input} 和 {user_prompt}。 "
             f"专家用葡萄牙语提供的回答如下：{assistant_response}。 "
             f"因此，请仔细评估专家用葡萄牙语提供的回答的质量和准确性，"
-            f"考虑提供的描述 e especialistas提供 as respostas。 "
+            f"考虑提供的描述和专家提供的回答。 "
             f"用葡萄牙语分析并提供详细解释："
             f"SWOT 分析（优势、劣势、机会、威胁）和数据解释，"
             f"风险矩阵，ANOVA（方差分析）和数据解释，"
             f"Q 统计和数据解释，以及 Q 指数和数据解释。"
             f"每段保持 4 句话，每句用逗号分隔，始终遵循亚里士多德和苏格拉底的最佳教育实践。"
             f"所有答案必须使用巴西葡萄牙语。a saida obrigatoriamente na lingua portuguesa"
+
         )
 
         rag_response = get_completion(rag_prompt)
@@ -324,75 +363,8 @@ def save_expert(expert_title: str, expert_description: str):
             file.seek(0)
             json.dump(agents, file, indent=4)
     else:
-        with open(FILEPATH, 'w') as file:
+        with open(FILEPATH, 'w') as file):
             json.dump([new_expert], file, indent=4)
-
-# Função para extrair texto de PDFs usando PyPDF2
-def extract_text_from_pdf(file):
-    try:
-        pdf_document = PdfReader(file)
-        text = ""
-        for page_num in range(len(pdf_document.pages)):
-            page = pdf_document.pages[page_num]
-            text += page.extract_text()
-        return text
-    except Exception as e:
-        st.error(f"Erro ao extrair texto do PDF: {e}")
-        return ""
-
-# Função para fazer upload e extração de textos de arquivos JSON ou PDF
-def upload_and_extract_references(uploaded_file):
-    references = {}
-    try:
-        if uploaded_file.name.endswith('.json'):
-            references = json.load(uploaded_file)
-        elif uploaded_file.name.endswith('.pdf'):
-            text = extract_text_from_pdf(uploaded_file)
-            references = {"text": text}
-        with open(REFERENCES_FILE, 'w') as file:
-            json.dump(references, file, indent=4)
-        return REFERENCES_FILE
-    except Exception as e:
-        st.error(f"Erro ao carregar e extrair referências: {e}")
-        return ""
-
-# Função para carregar referências
-def load_references():
-    try:
-        if os.path.exists(REFERENCES_FILE):
-            with open(REFERENCES_FILE, 'r') as file:
-                references = json.load(file)
-            return references
-        return {}
-    except Exception as e:
-        st.error(f"Erro ao carregar referências: {e}")
-        return {}
-
-# Função para carregar embeddings e dividir o texto em chunks
-def process_references(references):
-    try:
-        model = SentenceTransformer('all-MiniLM-L6-v2')
-        texts = references.get("text", "").split('\n')
-        chunks = [texts[i:i + 10] for i in range(0, len(texts), 10) if texts[i:i + 10]]
-        embeddings = model.encode(chunks)
-        return embeddings, chunks
-    except Exception as e:
-        st.error(f"Erro ao processar referências: {e}")
-        return [], []
-
-# Função para salvar embeddings em FAISS
-def save_embeddings_to_faiss(embeddings, chunks):
-    try:
-        dimension = embeddings.shape[1]
-        index = faiss.IndexFlatL2(dimension)
-        index.add(embeddings)
-        faiss.write_index(index, INDEX_FILE)
-        with open("chunks.json", "w") as f:
-            json.dump(chunks, f)
-        return index
-    except Exception as e:
-        st.error(f"Erro ao salvar embeddings em FAISS: {e}")
-        return None
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
@@ -433,7 +405,7 @@ with col1:
     evaluate_clicked = st.button("Avaliar Resposta com RAG")
     refresh_clicked = st.button("Apagar")
 
-    references_file = st.file_uploader("Upload do arquivo JSON ou PDF com referências (opcional)", type=["json", "pdf"], key="arquivo_referencias")
+    references_file = st.file_uploader("Upload do arquivo JSON com referências (opcional)", type="json", key="arquivo_referencias")
 
 with col2:
     if 'resposta_assistente' not in st.session_state:
@@ -452,13 +424,8 @@ with col2:
     chat_history = load_chat_history()[-memory_selection:]
 
     if fetch_clicked:
-        if references_file:
-            references_path = upload_and_extract_references(references_file)
-            references = load_references()
-            embeddings, chunks = process_references(references)
-            save_embeddings_to_faiss(np.array(embeddings), chunks)
-            st.session_state.references_path = references_path
-
+        if references_file is None:
+            st.warning("Não foi fornecido um arquivo de referências. Certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas.")
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number)
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
