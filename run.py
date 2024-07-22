@@ -1,4 +1,4 @@
-#Imports e Configurações
+#Imports e Configurações______________________________________
 
 import os
 import pdfplumber
@@ -59,8 +59,7 @@ def load_agent_options() -> list:
             except json.JSONDecodeError:
                 st.error("Erro ao ler o arquivo de Agentes. Por favor, verifique o formato.")
     return agent_options
-    
-#Funções para Extração e Processamento de PDF
+#Funções para Extração e Processamento de PDF______________________________________
 # Função para extrair texto de PDFs usando pdfplumber
 def extrair_texto_pdf_intervalos(file, pagina_inicial, pagina_final, limite_paginas):
     intervalos_texto = []
@@ -109,9 +108,7 @@ def upload_and_extract_references(uploaded_file):
     except Exception as e:
         st.error(f"Erro ao carregar e extrair referências: {e}")
         return pd.DataFrame()
-
-#Funções de Interação com a API
-
+#Funções de Interação com a API______________________________________
 # Função para obter o número máximo de tokens de um modelo
 def get_max_tokens(model_name: str) -> int:
     return MODEL_MAX_TOKENS.get(model_name, 4096)
@@ -225,9 +222,7 @@ def reset_api_usage():
     if os.path.exists(API_USAGE_FILE):
         os.remove(API_USAGE_FILE)
     st.success("Os dados de uso da API foram resetados.")
-
-#Funções para Interação com o Assistente
-
+#Funções para Interação com o AssistenteI______________________________________
 # Função para buscar resposta do assistente
 def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, interaction_number: int) -> Tuple[str, str]:
     phase_two_response = ""
@@ -259,6 +254,9 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                     log_api_usage('fetch', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, expert_description)
                     return api_response
                 except Exception as e:
+                    if "503" in str(e):
+                        st.error(f"Ocorreu um erro: Error code: 503 - {e}")
+                        return ""
                     handle_rate_limit(str(e), 'fetch')
 
         if agent_selection == "Escolher um especialista...":
@@ -330,6 +328,9 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                     log_api_usage('refine', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, "")
                     return api_response
                 except Exception as e:
+                    if "503" in str(e):
+                        st.error(f"Ocorreu um erro: Error code: 503 - {e}")
+                        return ""
                     handle_rate_limit(str(e), 'refine')
 
         history_context = ""
@@ -381,6 +382,9 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
                     log_api_usage('evaluate', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, expert_description)
                     return api_response
                 except Exception as e:
+                    if "503" in str(e):
+                        st.error(f"Ocorreu um erro: Error code: 503 - {e}")
+                        return ""
                     handle_rate_limit(str(e), 'evaluate')
 
         history_context = ""
@@ -415,10 +419,7 @@ def save_expert(expert_title: str, expert_description: str):
     else:
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
-
-
-#Interface Principal com Streamlit
-
+#Interface Principal com Streamlit _____________________________________
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
 
@@ -562,4 +563,3 @@ if api_usage:
 # Botão para resetar os gráficos
 if st.sidebar.button("Resetar Gráficos"):
     reset_api_usage()
-
