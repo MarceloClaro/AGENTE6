@@ -17,3 +17,4 @@ starlette
 transformers
 llm-sentence-transformers
 SQLite4
+pandas-sqlite3
