@@ -9,6 +9,11 @@ import time
 import seaborn as sns
 import matplotlib.pyplot as plt
 import base64
+import shutil
+
+# Remover módulos não utilizados
+# import ipywidgets as widgets
+# from IPython.display import display
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -177,7 +182,8 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     expert_title = ""
     expert_description = ""
     try:
-        client = Groq(api_key=get_api_key('fetch'))
+        # A linha abaixo foi comentada porque a importação Groq foi removida
+        # client = Groq(api_key=get_api_key('fetch'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
@@ -245,7 +251,8 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 # Função para refinar resposta
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Groq(api_key=get_api_key('refine'))
+        # A linha abaixo foi comentada porque a importação Groq foi removida
+        # client = Groq(api_key=get_api_key('refine'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
@@ -296,7 +303,8 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 # Função para avaliar resposta com RAG
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Groq(api_key=get_api_key('evaluate'))
+        # A linha abaixo foi comentada porque a importação Groq foi removida
+        # client = Groq(api_key=get_api_key('evaluate'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
@@ -557,21 +565,20 @@ if refresh_clicked:
 st.sidebar.image("logo.png", width=200)
 with st.sidebar.expander("Insights do Código"):
     st.markdown("""
-    O código do Agentes Alan Kay é um exemplo de uma aplicação de chat baseada em modelos de linguagem (LLMs) utilizando a biblioteca Streamlit e a API Groq. Aqui, vamos analisar detalhadamente o código e discutir suas inovações, pontos positivos e limitações.
+    O código do Agentes Alan Kay é um exemplo de uma aplicação de chat baseada em modelos de linguagem (LLMs) utilizando a biblioteca Streamlit. Aqui, vamos analisar detalhadamente o código e discutir suas inovações, pontos positivos e limitações.
 
     **Inovações:**
     - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA, para gerar respostas mais precisas e personalizadas.
-    - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de linguagem natural de alta performance para gerar respostas precisas.
     - Refinamento de respostas: O código permite que o usuário refine as respostas do modelo de linguagem, tornando-as mais precisas e relevantes para a consulta.
     - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do modelo de linguagem.
 
     **Pontos positivos:**
     - Personalização: O aplicativo permite que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas de acordo com suas necessidades.
-    - Precisão: A integração com a API Groq e o refinamento de respostas garantem que as respostas sejam precisas e relevantes para a consulta.
+    - Precisão: O refinamento de respostas garante que as respostas sejam precisas e relevantes para a consulta.
     - Flexibilidade: O código é flexível o suficiente para permitir que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas.
 
     **Limitações:**
-    - Dificuldade de uso: O aplicativo pode ser difícil de usar para os usuários que não têm experiência com modelos de linguagem ou API.
+    - Dificuldade de uso: O aplicativo pode ser difícil de usar para os usuários que não têm experiência com modelos de linguagem.
     - Limitações de token: O código tem limitações em relação ao número de tokens que podem ser processados pelo modelo de linguagem.
     - Necessidade de treinamento adicional: O modelo de linguagem pode precisar de treinamento adicional para lidar com consultas mais complexas ou específicas.
 
