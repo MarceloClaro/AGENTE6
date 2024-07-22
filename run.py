@@ -10,9 +10,8 @@ from groq import Groq
 import base64
 import fitz  # PyMuPDF
 from sentence_transformers import SentenceTransformer
-from chromadb.config import Settings
-from chromadb import Client
-from chromadb.utils import embed_texts
+import chromadb
+from chromadb.utils import embedding_functions
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -25,7 +24,7 @@ st.set_page_config(
 FILEPATH = "agents.json"
 CHAT_HISTORY_FILE = 'chat_history.json'
 API_USAGE_FILE = 'api_usage.json'
-REFERENCE_COLLECTION = "reference_texts"
+REFERENCES_PATH = 'references'
 
 # Definição de modelos e tokens
 MODEL_MAX_TOKENS = {
@@ -41,6 +40,10 @@ API_KEYS = {
     "refine": ["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", "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"],
     "evaluate": ["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", "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"]
 }
+
+# Inicializa o modelo de embeddings e a coleção ChromaDB
+embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+chroma_client = chromadb.Client()
 
 # Função para obter a próxima chave de API disponível
 def get_api_key(action: str) -> str:
@@ -371,38 +374,32 @@ def save_expert(expert_title: str, expert_description: str):
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
-# Função para carregar e salvar referências
-def save_references(file):
-    file_type = file.type.split('/')[-1]
-    file_name = file.name
-    if file_type == 'pdf':
-        text = extract_text_from_pdf(file)
-    elif file_type == 'json':
-        text = extract_text_from_json(file)
-    else:
-        st.error("Tipo de arquivo não suportado")
-        return
-
-    references_path = f"references_{file_name.split('.')[0]}.json"
-    with open(references_path, 'w') as f:
-        json.dump(text, f)
+# Função para salvar referências extraídas
+def save_references(references: dict):
+    if not os.path.exists(REFERENCES_PATH):
+        os.makedirs(REFERENCES_PATH)
+    references_path = os.path.join(REFERENCES_PATH, 'references.json')
+    with open(references_path, 'w') as file:
+        json.dump(references, file, indent=4)
     return references_path
 
-def extract_text_from_pdf(pdf_file):
+# Função para extrair texto de arquivos PDF
+def extract_text_from_pdf(pdf_file) -> str:
     doc = fitz.open(pdf_file)
     text = ""
     for page in doc:
         text += page.get_text()
     return text
 
-def extract_text_from_json(json_file):
-    return json.load(json_file)
-
-def load_references(file):
-    references_path = save_references(file)
-    with open(references_path, 'r') as f:
-        references = json.load(f)
-    return references
+# Função para lidar com o upload de arquivos e extração de texto
+def handle_file_upload(file):
+    file_type = file.type
+    references = {}
+    if file_type == "application/json":
+        references = json.load(file)
+    elif file_type == "application/pdf":
+        references['content'] = extract_text_from_pdf(file)
+    return save_references(references)
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
@@ -462,10 +459,9 @@ with col2:
     chat_history = load_chat_history()[-memory_selection:]
 
     if fetch_clicked:
+        references_path = None
         if references_file:
-            references = load_references(references_file)
-        else:
-            references = None
+            references_path = handle_file_upload(references_file)
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number)
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
@@ -473,21 +469,13 @@ with col2:
 
     if refine_clicked:
         if st.session_state.resposta_assistente:
-            if references_file:
-                references = load_references(references_file)
-            else:
-                references = None
-            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references, chat_history, interaction_number)
+            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_path, chat_history, interaction_number)
             save_chat_history(user_input, user_prompt, st.session_state.resposta_refinada)
         else:
             st.warning("Por favor, busque uma resposta antes de refinar.")
 
     if evaluate_clicked:
         if st.session_state.resposta_assistente and st.session_state.descricao_especialista_ideal:
-            if references_file:
-                references = load_references(references_file)
-            else:
-                references = None
             st.session_state.rag_resposta = evaluate_response_with_rag(user_input, user_prompt, st.session_state.descricao_especialista_ideal, st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, model_name, temperature, chat_history, interaction_number)
             save_chat_history(user_input, user_prompt, st.session_state.rag_resposta)
         else:
@@ -541,18 +529,18 @@ with st.sidebar.expander("Insights do Código"):
     Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas. No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais.
     """)
 
-# Informações de contato
-st.sidebar.image("eu.ico", width=80)
-st.sidebar.write("""
-Projeto Geomaker + IA 
-- Professor: Marcelo Claro.
+    # Informações de contato
+    st.sidebar.image("eu.ico", width=80)
+    st.sidebar.write("""
+    Projeto Geomaker + IA 
+    - Professor: Marcelo Claro.
 
-Contatos: marceloclaro@gmail.com
+    Contatos: marceloclaro@gmail.com
 
-Whatsapp: (88)981587145
+    Whatsapp: (88)981587145
 
-Instagram: [https://www.instagram.com/marceloclaro.geomaker/](https://www.instagram.com/marceloclaro.geomaker/)
-""")
+    Instagram: [https://www.instagram.com/marceloclaro.geomaker/](https://www.instagram.com/marceloclaro.geomaker/)
+    """)
 
 # Carrega o uso da API e plota o histograma
 api_usage = load_api_usage()
