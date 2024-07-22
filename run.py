@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from typing import List, Tuple
 import base64
-from PyPDF2 import PdfReader
+from PyPDF2 import PdfReader  # Use PyPDF2 instead of fitz
 from sentence_transformers import SentenceTransformer
 
 # Configurações da página do Streamlit
@@ -183,10 +183,31 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     expert_title = ""
     expert_description = ""
     try:
+        client = Client(Settings(chroma_api_impl="chromadb.api.fastapi.FastAPI", chroma_server_host="localhost", chroma_server_http_port=8000))
         def get_completion(prompt: str) -> str:
-            # Implementação fictícia para a função get_completion
-            # Esta função deve chamar o modelo de linguagem escolhido e retornar a resposta
-            return "Resposta gerada pelo modelo"
+            start_time = time.time()
+            while True:
+                try:
+                    completion = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "user", "content": prompt},
+                        ],
+                        model=model_name,
+                        temperature=temperature,
+                        max_tokens=get_max_tokens(model_name),
+                        top_p=1,
+                        stop=None,
+                        stream=False
+                    )
+                    end_time = time.time()
+                    tokens_used = completion.usage.total_tokens
+                    time_taken = end_time - start_time
+                    api_response = completion.choices[0].message.content
+                    log_api_usage('fetch', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, expert_description)
+                    return api_response
+                except Exception as e:
+                    handle_rate_limit(str(e), 'fetch')
 
         if agent_selection == "Escolher um especialista...":
             phase_one_prompt = f"Descreva o especialista ideal para responder a seguinte solicitação: {user_input} e {user_prompt}."
@@ -218,10 +239,31 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 # Função para refinar resposta
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list, interaction_number: int) -> str:
     try:
+        client = Client(Settings(chroma_api_impl="chromadb.api.fastapi.FastAPI", chroma_server_host="localhost", chroma_server_http_port=8000))
         def get_completion(prompt: str) -> str:
-            # Implementação fictícia para a função get_completion
-            # Esta função deve chamar o modelo de linguagem escolhido e retornar a resposta
-            return "Resposta refinada pelo modelo"
+            start_time = time.time()
+            while True:
+                try:
+                    completion = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "user", "content": prompt},
+                        ],
+                        model=model_name,
+                        temperature=temperature,
+                        max_tokens=get_max_tokens(model_name),
+                        top_p=1,
+                        stop=None,
+                        stream=False
+                    )
+                    end_time = time.time()
+                    tokens_used = completion.usage.total_tokens
+                    time_taken = end_time - start_time
+                    api_response = completion.choices[0].message.content
+                    log_api_usage('refine', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, "")
+                    return api_response
+                except Exception as e:
+                    handle_rate_limit(str(e), 'refine')
 
         history_context = "\n".join([f"Usuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}" for entry in chat_history])
         refine_prompt = f"{expert_title}, refine a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}.\n\nHistórico do chat:{history_context}"
@@ -239,10 +281,31 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 # Função para avaliar resposta com RAG
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
     try:
+        client = Client(Settings(chroma_api_impl="chromadb.api.fastapi.FastAPI", chroma_server_host="localhost", chroma_server_http_port=8000))
         def get_completion(prompt: str) -> str:
-            # Implementação fictícia para a função get_completion
-            # Esta função deve chamar o modelo de linguagem escolhido e retornar a resposta
-            return "Resposta avaliada pelo RAG"
+            start_time = time.time()
+            while True:
+                try:
+                    completion = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "user", "content": prompt},
+                        ],
+                        model=model_name,
+                        temperature=temperature,
+                        max_tokens=get_max_tokens(model_name),
+                        top_p=1,
+                        stop=None,
+                        stream=False
+                    )
+                    end_time = time.time()
+                    tokens_used = completion.usage.total_tokens
+                    time_taken = end_time - start_time
+                    api_response = completion.choices[0].message.content
+                    log_api_usage('evaluate', interaction_number, tokens_used, time_taken, user_input, user_prompt, api_response, expert_title, expert_description)
+                    return api_response
+                except Exception as e:
+                    handle_rate_limit(str(e), 'evaluate')
 
         history_context = "\n".join([f"Usuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}" for entry in chat_history])
         rag_prompt = (
@@ -323,7 +386,7 @@ def upload_and_extract_references(uploaded_file):
 def load_references():
     try:
         if os.path.exists(REFERENCES_FILE):
-            with open(REFERENCES_FILE, 'r') as file:
+            with open(REFERENCES_FILE, 'r') as file):
                 references = json.load(file)
             return references
         return {}
@@ -365,7 +428,7 @@ st.image('updating.gif', width=300, caption='Laboratório de Educação e Inteli
 st.markdown("<h1 style='text-align: center;'>Agentes Alan Kay</h1>", unsafe_allow_html=True)
 st.markdown("<h2 style='text-align: center;'>Utilize o Rational Agent Generator (RAG) para avaliar a resposta do especialista e garantir qualidade e precisão.</h2>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center;'>Descubra como nossa plataforma pode revolucionar a educação.</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Descubra como nossa plataforma pode revolucionar a educação.</h2>", unsafe.allow_html=True)
 
 with st.expander("Clique para saber mais sobre os Agentes Alan Kay."):
     st.write("1. **Conecte-se instantaneamente com especialistas:** Imagine ter acesso direto a especialistas em diversas áreas do conhecimento, prontos para responder às suas dúvidas e orientar seus estudos e pesquisas.")
@@ -465,7 +528,7 @@ if refresh_clicked:
 st.sidebar.image("logo.png", width=200)
 with st.sidebar.expander("Insights do Código"):
     st.markdown("""
-    O código do Agentes Alan Kay é um exemplo de uma aplicação de chat baseada em modelos de linguagem (LLMs) utilizando a biblioteca Streamlit. Aqui, vamos analisar detalhadamente o código e discutir suas inovações, pontos positivos e limitações.
+    O código do Agentes Alan Kay é um exemplo de uma aplicação de chat baseada em modelos de linguagem (LLMs) utilizando a biblioteca Streamlit e a API Groq. Aqui, vamos analisar detalhadamente o código e discutir suas inovações, pontos positivos e limitações.
 
     **Inovações:**
     - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA, para gerar respostas mais precisas e personalizadas.
