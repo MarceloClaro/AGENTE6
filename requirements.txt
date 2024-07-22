@@ -10,7 +10,7 @@ PyPDF2
 matplotlib
 seaborn
 sentence_transformers
-chromadb==0.5.4
+chromadb==0.4.24
 PyMuPDF
 frontend
 starlette
