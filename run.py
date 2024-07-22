@@ -10,8 +10,6 @@ from groq import Groq
 import base64
 from PyPDF2 import PdfFileReader
 from sentence_transformers import SentenceTransformer
-from chromadb.config import Settings
-from chromadb import Client
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -19,6 +17,14 @@ st.set_page_config(
     page_icon="logo.png",
     layout="wide",
 )
+
+# Tentativa de importação da biblioteca ChromaDB com tratamento de exceção
+try:
+    from chromadb.config import Settings
+    from chromadb import Client
+except ImportError as e:
+    st.error(f"Erro ao importar a biblioteca ChromaDB: {e}")
+    raise
 
 # Definição de caminhos para arquivos
 FILEPATH = "agents.json"
