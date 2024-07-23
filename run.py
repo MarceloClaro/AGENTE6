@@ -120,7 +120,7 @@ def salvar_como_json(dados, caminho_saida):
 # Função para processar e salvar cada intervalo como JSON
 def processar_e_salvar(intervalos_texto, secao_inicial, caminho_pasta_base, nome_arquivo):
     for i, texto_intervalo in enumerate(intervalos_texto):
-        secoes = identificar_secoes(texto_intervalo, secao_inicial)
+        secoes = identificar_secoes(" ".join([entrada['text'] for entrada in texto_intervalo]), secao_inicial)
         caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}_{i}.json")
         salvar_como_json(secoes, caminho_saida)
 
@@ -355,7 +355,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 titulo = row.get('titulo', 'Título Desconhecido')
                 autor = row.get('autor', 'Autor Desconhecido')
                 ano = row.get('ano', 'Ano Desconhecido')
-                paginas = row.get('paginas', 'Páginas Desconhecidas')
+                paginas = row.get('Page', 'Página Desconhecida')
                 references_context += f"Título: {titulo}\nAutor: {autor}\nAno: {ano}\nPáginas: {paginas}\n\n"
 
         phase_two_prompt = (
@@ -489,7 +489,7 @@ def save_expert(expert_title: str, expert_description: str):
             file.seek(0)
             json.dump(agents, file, indent=4)
     else:
-        with open(FILEPATH, 'w') as file):
+        with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
 ### 6. Interface Principal com Streamlit
@@ -563,8 +563,8 @@ with col2:
                     titulo = row.get('titulo', 'Título Desconhecido')
                     autor = row.get('autor', 'Autor Desconhecido')
                     ano = row.get('ano', 'Ano Desconhecido')
-                    paginas = row.get('paginas', 'Páginas Desconhecidas')
-                    references_context += f"Título: {titulo}\nAutor: {autor}\nAno: {ano}\nPáginas: {paginas}\n\n"
+                    paginas = row.get('Page', 'Página Desconhecida')
+                    references_context += f"Título: {titulo}\nAutor: {autor}\nAno: {ano}\nPágina: {paginas}\n\n"
             st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_context, chat_history, interaction_number)
             save_chat_history(user_input, user_prompt, st.session_state.resposta_refinada)
         else:
