@@ -201,9 +201,7 @@ def handle_rate_limit(error_message: str, action: str):
 def save_chat_history(user_input, user_prompt, expert_response, chat_history_file=CHAT_HISTORY_FILE):
     chat_entry = {
         'user_input': user_input,
-        'user_prompt
-
-': user_prompt,
+        'user_prompt': user_prompt,
         'expert_response': expert_response
     }
     if os.path.exists(chat_history_file):
