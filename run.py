@@ -2,7 +2,6 @@
 
 ### 1. Importações e Configurações Iniciais
 
-
 import os
 import pdfplumber
 import json
@@ -13,6 +12,7 @@ from typing import Tuple
 import time
 import seaborn as sns
 import matplotlib.pyplot as plt
+from groq import Groq
 
 # Configurações da página do Streamlit
 st.set_page_config(
