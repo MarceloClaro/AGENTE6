@@ -62,94 +62,84 @@ def load_agent_options() -> list:
 
 # Função para extrair texto de todas as páginas de um PDF usando pdfplumber
 def extrair_texto_pdf(file):
-    texto_paginas = []
-    with pdfplumber.open(file) as pdf:
-        for num_pagina in range(len(pdf.pages)):
-            pagina = pdf.pages[num_pagina]
-            texto_pagina = pagina.extract_text()
-            if texto_pagina:
-                texto_paginas.append({'page': num_pagina + 1, 'text': texto_pagina})
+    texto_paginas = []  # Lista para armazenar o texto de cada página
+    with pdfplumber.open(file) as pdf:  # Abre o arquivo PDF
+        for num_pagina in range(len(pdf.pages)):  # Itera sobre cada página do PDF
+            pagina = pdf.pages[num_pagina]  # Obtém a página atual
+            texto_pagina = pagina.extract_text()  # Extrai o texto da página
+            if texto_pagina:  # Verifica se há texto na página
+                texto_paginas.append({'page': num_pagina + 1, 'text': texto_pagina})  # Adiciona o texto e o número da página à lista
     return texto_paginas
 
 # Função para converter texto em DataFrame
 def text_to_dataframe(texto_paginas):
-    dados = {'Page': [], 'Text': []}
-    for entrada in texto_paginas:
-        dados['Page'].append(entrada['page'])
-        dados['Text'].append(entrada['text'])
-    df = pd.DataFrame(dados)
+    dados = {'Page': [], 'Text': []}  # Dicionário para armazenar os dados
+    for entrada in texto_paginas:  # Itera sobre cada entrada de texto
+        dados['Page'].append(entrada['page'])  # Adiciona o número da página ao dicionário
+        dados['Text'].append(entrada['text'])  # Adiciona o texto ao dicionário
+    df = pd.DataFrame(dados)  # Cria um DataFrame a partir do dicionário
     return df
 
 # Função para identificar seções com base em expressões regulares
 def identificar_secoes(texto, secao_inicial):
-    secoes = {}
-    secao_atual = secao_inicial
+    secoes = {}  # Dicionário para armazenar as seções
+    secao_atual = secao_inicial  # Define a seção inicial
     secoes[secao_atual] = ""
 
-    paragrafos = texto.split('\n')
-    for paragrafo in paragrafos:
+    paragrafos = texto.split('\n')  # Divide o texto em parágrafos
+    for paragrafo in paragrafos:  # Itera sobre cada parágrafo
         match = re.match(r'Parte \d+\.', paragrafo) or re.match(r'Capítulo \d+: .*', paragrafo) or re.match(r'\d+\.\d+ .*', paragrafo)
-        if match:
-            secao_atual = match.group()
-            secoes[secao_atual] = ""
+        if match:  # Se encontrar uma nova seção
+            secao_atual = match.group()  # Define a nova seção atual
+            secoes[secao_atual] = ""  # Cria uma nova entrada no dicionário de seções
         else:
-            secoes[secao_atual] += paragrafo + "\n"
+            secoes[secao_atual] += paragrafo + "\n"  # Adiciona o parágrafo à seção atual
 
     return secoes
 
 # Função para salvar os dados em um arquivo JSON
 def salvar_como_json(dados, caminho_saida):
-    with open(caminho_saida, 'w', encoding='utf-8') as file:
-        json.dump(dados, file, ensure_ascii=False, indent=4)
+    with open(caminho_saida, 'w', encoding='utf-8') as file:  # Abre o arquivo de saída
+        json.dump(dados, file, ensure_ascii=False, indent=4)  # Salva os dados no arquivo
 
 # Função para processar e salvar cada intervalo como JSON
 def processar_e_salvar(texto_paginas, secao_inicial, caminho_pasta_base, nome_arquivo):
-    secoes = identificar_secoes(" ".join([entrada['text'] for entrada in texto_paginas]), secao_inicial)
-    caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}.json")
-    salvar_como_json(secoes, caminho_saida)
+    secoes = identificar_secoes(" ".join([entrada['text'] for entrada in texto_paginas]), secao_inicial)  # Identifica as seções no texto
+    caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}.json")  # Define o caminho do arquivo de saída
+    salvar_como_json(secoes, caminho_saida)  # Salva as seções no arquivo JSON
 
 ### 3. Função para Carregar e Extrair Referências
 
-# Função fictícia para simular a chamada de uma API que preenche dados faltantes
-def preencher_dados_faltantes(titulo):
-    # Esta função deve ser substituída por uma chamada real a uma API externa
-    return {
-        'titulo': titulo,
-        'autor': 'Autor Desconhecido',
-        'ano': 'Ano Desconhecido',
-        'paginas': 'Páginas Desconhecidas'
-    }
-
 # Função para fazer upload e extração de textos de arquivos JSON ou PDF
 def upload_and_extract_references(uploaded_file):
-    references = {}
+    references = {}  # Dicionário para armazenar as referências
     try:
-        if uploaded_file.name.endswith('.json'):
-            references = json.load(uploaded_file)
+        if uploaded_file.name.endswith('.json'):  # Verifica se o arquivo é JSON
+            references = json.load(uploaded_file)  # Carrega as referências do arquivo JSON
             with open("references.json", 'w') as file:
-                json.dump(references, file, indent=4)
+                json.dump(references, file, indent=4)  # Salva as referências em um arquivo JSON
             return "references.json"
-        elif uploaded_file.name.endswith('.pdf'):
-            texto_paginas = extrair_texto_pdf(uploaded_file)
+        elif uploaded_file.name.endswith('.pdf'):  # Verifica se o arquivo é PDF
+            texto_paginas = extrair_texto_pdf(uploaded_file)  # Extrai o texto do PDF
             if not texto_paginas:
-                st.error("Nenhum texto extraído do PDF.")
+                st.error("Nenhum texto extraído do PDF.")  # Mostra um erro se não houver texto
                 return pd.DataFrame()
-            df = text_to_dataframe(texto_paginas)
+            df = text_to_dataframe(texto_paginas)  # Converte o texto em DataFrame
             if not df.empty:
-                df.to_csv("references.csv", index=False)
+                df.to_csv("references.csv", index=False)  # Salva o DataFrame em um arquivo CSV
                 return df
             else:
-                st.error("Nenhum texto extraído do PDF.")
+                st.error("Nenhum texto extraído do PDF.")  # Mostra um erro se o DataFrame estiver vazio
                 return pd.DataFrame()
     except Exception as e:
-        st.error(f"Erro ao carregar e extrair referências: {e}")
+        st.error(f"Erro ao carregar e extrair referências: {e}")  # Mostra um erro se houver exceção
         return pd.DataFrame()
 
 ### 4. Funções de Interação com a API
 
 # Função para obter o número máximo de tokens de um modelo
 def get_max_tokens(model_name: str) -> int:
-    return MODEL_MAX_TOKENS.get(model_name, 4096)
+    return MODEL_MAX_TOKENS.get(model_name, 4096)  # Retorna o número máximo de tokens para o modelo
 
 # Função para registrar o uso da API
 def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_taken: float, user_input: str, user_prompt: str, api_response: str, agent_used: str, agent_description: str):
