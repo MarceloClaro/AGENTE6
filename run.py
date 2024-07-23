@@ -1,6 +1,7 @@
+#Aqui está a versão revisada do seu código para extrair texto de cada página de um PDF e armazená-lo em colunas de um DataFrame:
 
+### 1. Importações e Configurações Iniciais
 
-#### 1. Importações e Configurações Iniciais
 
 import os
 import pdfplumber
@@ -9,12 +10,9 @@ import re
 import pandas as pd
 import streamlit as st
 from typing import Tuple
-from groq import Groq
 import time
 import seaborn as sns
 import matplotlib.pyplot as plt
-import base64
-import shutil
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -64,9 +62,7 @@ def load_agent_options() -> list:
     return agent_options
 
 
-#### 2. Funções para Extração e Processamento de PDF
-
-#Adicionamos ajustes para definir `pagina_final` como a última página do PDF se for maior do que o total de páginas e verificações para `pagina_inicial` e `pagina_final`.
+### 2. Funções para Extração e Processamento de PDF
 
 
 # Função para extrair texto de PDFs usando pdfplumber
@@ -96,13 +92,9 @@ def extrair_texto_pdf_intervalos(file, pagina_inicial, pagina_final, limite_pagi
     return intervalos_texto
 
 # Função para converter texto em DataFrame
-def text_to_dataframe(text):
-    lines = text.split('\n')
-    data = [line.split() for line in lines if line.strip()]
-    if data:
-        df = pd.DataFrame(data)
-    else:
-        df = pd.DataFrame()
+def text_to_dataframe(texts):
+    data = {f'Page {i+1}': [text] for i, text in enumerate(texts)}
+    df = pd.DataFrame.from_dict(data, orient='index').transpose()
     return df
 
 # Função para identificar seções com base em expressões regulares
@@ -135,9 +127,8 @@ def processar_e_salvar(intervalos_texto, secao_inicial, caminho_pasta_base, nome
         salvar_como_json(secoes, caminho_saida)
 
 
-#### 3. Função para Carregar e Extrair Referências
+### 3. Função para Carregar e Extrair Referências
 
-#Adicionei logs para depuração e verificação de arquivo válido.
 
 # Função para fazer upload e extração de textos de arquivos JSON ou PDF
 def upload_and_extract_references(uploaded_file):
@@ -153,9 +144,8 @@ def upload_and_extract_references(uploaded_file):
             if not intervalos_texto:
                 st.error("Nenhum texto extraído do PDF.")
                 return pd.DataFrame()
-            dfs = [text_to_dataframe(texto) for texto in intervalos_texto if texto]
-            if dfs:
-                df = pd.concat(dfs, ignore_index=True)
+            df = text_to_dataframe(intervalos_texto)
+            if not df.empty:
                 df.to_csv("references.csv", index=False)
                 return df
             else:
@@ -166,9 +156,7 @@ def upload_and_extract_references(uploaded_file):
         return pd.DataFrame()
 
 
-#### 4. Funções de Interação com a API
-
-#Incluindo as funções necessárias para registrar o uso da API e lidar com limites de taxa.
+### 4. Funções de Interação com a API
 
 
 # Função para obter o número máximo de tokens de um modelo
@@ -195,8 +183,6 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
             file.seek(0)
             json.dump(api_usage, file, indent=4)
     else:
-
-
         with open(API_USAGE_FILE, 'w') as file:
             json.dump([entry], file, indent=4)
 
@@ -215,7 +201,9 @@ def handle_rate_limit(error_message: str, action: str):
 def save_chat_history(user_input, user_prompt, expert_response, chat_history_file=CHAT_HISTORY_FILE):
     chat_entry = {
         'user_input': user_input,
-        'user_prompt': user_prompt,
+        'user_prompt
+
+': user_prompt,
         'expert_response': expert_response
     }
     if os.path.exists(chat_history_file):
@@ -288,7 +276,7 @@ def reset_api_usage():
     st.success("Os dados de uso da API foram resetados.")
 
 
-#### 5. Funções para Interação com o Assistente
+### 5. Funções para Interação com o Assistente
 
 
 # Função para buscar resposta do assistente
@@ -433,7 +421,9 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "system
+
+", "content": "Você é um assistente útil."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -489,7 +479,7 @@ def save_expert(expert_title: str, expert_description: str):
             json.dump([new_expert], file, indent=4)
 
 
-#### 6. Interface Principal com Streamlit
+### 6. Interface Principal com Streamlit
 
 
 # Carrega as opções de Agentes a partir do arquivo JSON
@@ -593,9 +583,7 @@ with st.sidebar.expander("Insights do Código"):
     O código do Consultor de PDFs + IA é um exemplo de uma aplicação de chat baseada em modelos de linguagem (LLMs) utilizando a biblioteca Streamlit e a API Groq. Aqui, vamos analisar detalhadamente o código e discutir suas inovações, pontos positivos e limitações.
 
     **Inovações:**
-    - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA,
-
- para gerar respostas mais precisas e personalizadas.
+    - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA, para gerar respostas mais precisas e personalizadas.
     - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de linguagem natural de alta performance para gerar respostas precisas.
     - Refinamento de respostas: O código permite que o usuário refine as respostas do modelo de linguagem, tornando-as mais precisas e relevantes para a consulta.
     - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do modelo de linguagem.
@@ -603,7 +591,9 @@ with st.sidebar.expander("Insights do Código"):
     **Pontos positivos:**
     - Personalização: O aplicativo permite que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas de acordo com suas necessidades.
     - Precisão: A integração com a API Groq e o refinamento de respostas garantem que as respostas sejam precisas e relevantes para a consulta.
-    - Flexibilidade: O código é flexível o suficiente para permitir que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas.
+    - Flexibilidade: O código é
+
+ flexível o suficiente para permitir que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas.
 
     **Limitações:**
     - Dificuldade de uso: O aplicativo pode ser difícil de usar para os usuários que não têm experiência com modelos de linguagem ou API.
@@ -641,4 +631,4 @@ if st.sidebar.button("Resetar Gráficos"):
 
 ### Considerações Finais
 
-#Este código agora deve lidar adequadamente com a extração de texto de PDFs, estruturando e salvando o texto em JSON para consultas futuras. Ele também garante que todas as funções necessárias sejam definidas antes de serem chamadas e adiciona verificações de limites de página para evitar erros "list index out of range". Certifique-se de testar completamente o código para garantir que ele atenda às suas necessidades específicas.
+#Este código foi revisado para lidar adequadamente com a extração de texto de PDFs, estruturando e salvando o texto em JSON para consultas futuras. Ele também garante que todas as funções necessárias sejam definidas antes de serem chamadas e adiciona verificações de limites de página para evitar erros "list index out of range". Certifique-se de testar completamente o código para garantir que ele atenda às suas necessidades específicas.
