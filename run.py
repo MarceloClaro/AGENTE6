@@ -1,21 +1,21 @@
 # Importação das bibliotecas necessárias
-import os  # Biblioteca para operações com o sistema operacional
-import pdfplumber  # Biblioteca para extração de texto de PDFs
-import json  # Biblioteca para manipulação de dados em formato JSON
-import re  # Biblioteca para operações com expressões regulares
-import pandas as pd  # Biblioteca para manipulação e análise de dados
-import streamlit as st  # Biblioteca para criar interfaces web interativas
-from typing import Tuple  # Biblioteca para suporte a tipos de dados em anotações de função
-import time  # Biblioteca para operações com tempo
-import matplotlib.pyplot as plt  # Biblioteca para criação de gráficos
-import seaborn as sns  # Biblioteca para criação de gráficos estatísticos
-from groq import Groq  # Importa a API Groq para interações com modelos de linguagem
+import os  # Operações com o sistema operacional
+import pdfplumber  # Extração de texto de PDFs
+import json  # Manipulação de dados em formato JSON
+import re  # Operações com expressões regulares
+import pandas as pd  # Manipulação e análise de dados
+import streamlit as st  # Criação de interfaces web interativas
+from typing import Tuple  # Suporte a tipos de dados em anotações de função
+import time  # Operações com tempo
+import matplotlib.pyplot as plt  # Criação de gráficos
+import seaborn as sns  # Criação de gráficos estatísticos
+from groq import Groq  # API Groq para interações com modelos de linguagem
 
 # Configurações da página do Streamlit
 st.set_page_config(
-    page_title="Consultor de PDFs + IA",  # Define o título da página
-    page_icon="logo.png",  # Define o ícone da página
-    layout="wide",  # Define o layout da página como amplo
+    page_title="Consultor de PDFs + IA",  # Título da página
+    page_icon="logo.png",  # Ícone da página
+    layout="wide",  # Layout amplo
 )
 
 # Definição de caminhos para arquivos
@@ -29,7 +29,7 @@ MODEL_MAX_TOKENS = {
     'llama3-70b-8192': 8192,
     'llama3-8b-8192': 8192,
     'gemma-7b-it': 8192,
-}  # Dicionário que mapeia nomes de modelos ao número máximo de tokens suportados
+}  # Dicionário de modelos com o número máximo de tokens suportados
 
 # Chaves da API
 API_KEYS = {
