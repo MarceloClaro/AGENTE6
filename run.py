@@ -1,7 +1,3 @@
-#O erro pode ser resultado de vários fatores, incluindo variáveis não definidas ou erros na manipulação do DataFrame. Vou revisar o código para garantir que todas as variáveis sejam definidas corretamente e que o DataFrame seja manipulado de forma adequada.
-
-### Importações e Configurações Iniciais
-
 import os
 import pdfplumber
 import json
@@ -11,7 +7,7 @@ import streamlit as st
 from typing import Tuple
 import time
 import matplotlib.pyplot as plt
-import seaborn as sns
+import seaborn as sns  # Importando a biblioteca Seaborn
 from groq import Groq
 
 # Configurações da página do Streamlit
@@ -61,7 +57,7 @@ def load_agent_options() -> list:
                 st.error("Erro ao ler o arquivo de Agentes. Por favor, verifique o formato.")
     return agent_options
 
-### Funções para Extração e Processamento de PDF
+### 2. Funções para Extração e Processamento de PDF
 
 # Função para extrair texto de PDFs usando pdfplumber
 def extrair_texto_pdf_intervalos(file, pagina_inicial, pagina_final, limite_paginas):
@@ -124,7 +120,7 @@ def processar_e_salvar(intervalos_texto, secao_inicial, caminho_pasta_base, nome
         caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}_{i}.json")
         salvar_como_json(secoes, caminho_saida)
 
-### Função para Carregar e Extrair Referências
+### 3. Função para Carregar e Extrair Referências
 
 # Função para fazer upload e extração de textos de arquivos JSON ou PDF
 def upload_and_extract_references(uploaded_file):
@@ -151,7 +147,7 @@ def upload_and_extract_references(uploaded_file):
         st.error(f"Erro ao carregar e extrair referências: {e}")
         return pd.DataFrame()
 
-### Funções de Interação com a API
+### 4. Funções de Interação com a API
 
 # Função para obter o número máximo de tokens de um modelo
 def get_max_tokens(model_name: str) -> int:
@@ -267,7 +263,7 @@ def reset_api_usage():
         os.remove(API_USAGE_FILE)
     st.success("Os dados de uso da API foram resetados.")
 
-### Funções para Interação com o Assistente
+### 5. Funções para Interação com o Assistente
 
 # Função para buscar resposta do assistente
 def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, interaction_number: int) -> Tuple[str, str]:
@@ -463,10 +459,10 @@ def save_expert(expert_title: str, expert_description: str):
             file.seek(0)
             json.dump(agents, file, indent=4)
     else:
-        with open(FILEPATH, 'w') as file):
+        with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
-### Interface Principal com Streamlit
+### 6. Interface Principal com Streamlit
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
@@ -582,9 +578,7 @@ with st.sidebar.expander("Insights do Código"):
     - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do modelo de linguagem.
 
     **Pontos positivos:**
-    - Personalização: O aplicativo permite
-
- que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas de acordo com suas necessidades.
+    - Personalização: O aplicativo permite que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas de acordo com suas necessidades.
     - Precisão: A integração com a API Groq e o refinamento de respostas garantem que as respostas sejam precisas e relevantes para a consulta.
     - Flexibilidade: O código é flexível o suficiente para permitir que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas.
 
@@ -619,7 +613,6 @@ if api_usage:
 # Botão para resetar os gráficos
 if st.sidebar.button("Resetar Gráficos"):
     reset_api_usage()
-
 
 ### Considerações Finais
 
