@@ -62,51 +62,51 @@ def load_agent_options() -> list:
 
 # Função para extrair texto de todas as páginas de um PDF usando pdfplumber
 def extrair_texto_pdf(file):
-    texto_paginas = []
-    with pdfplumber.open(file) as pdf:
-        for num_pagina in range(len(pdf.pages)):
+    texto_paginas = []  # Lista para armazenar o texto extraído de cada página
+    with pdfplumber.open(file) as pdf:  # Abre o arquivo PDF
+        for num_pagina in range(len(pdf.pages)):  # Itera sobre todas as páginas do PDF
             pagina = pdf.pages[num_pagina]
-            texto_pagina = pagina.extract_text()
+            texto_pagina = pagina.extract_text()  # Extrai o texto da página atual
             if texto_pagina:
-                texto_paginas.append({'page': num_pagina + 1, 'text': texto_pagina})
+                texto_paginas.append({'page': num_pagina + 1, 'text': texto_pagina})  # Adiciona o texto extraído à lista
     return texto_paginas
 
 # Função para converter texto em DataFrame
 def text_to_dataframe(texto_paginas):
-    dados = {'Page': [], 'Text': []}
+    dados = {'Page': [], 'Text': []}  # Dicionário para armazenar os dados
     for entrada in texto_paginas:
-        dados['Page'].append(entrada['page'])
-        dados['Text'].append(entrada['text'])
-    df = pd.DataFrame(dados)
+        dados['Page'].append(entrada['page'])  # Adiciona o número da página
+        dados['Text'].append(entrada['text'])  # Adiciona o texto da página
+    df = pd.DataFrame(dados)  # Converte o dicionário em um DataFrame
     return df
 
 # Função para identificar seções com base em expressões regulares
 def identificar_secoes(texto, secao_inicial):
-    secoes = {}
-    secao_atual = secao_inicial
+    secoes = {}  # Dicionário para armazenar as seções
+    secao_atual = secao_inicial  # Inicializa a seção atual
     secoes[secao_atual] = ""
 
-    paragrafos = texto.split('\n')
+    paragrafos = texto.split('\n')  # Divide o texto em parágrafos
     for paragrafo in paragrafos:
         match = re.match(r'Parte \d+\.', paragrafo) or re.match(r'Capítulo \d+: .*', paragrafo) or re.match(r'\d+\.\d+ .*', paragrafo)
         if match:
-            secao_atual = match.group()
+            secao_atual = match.group()  # Atualiza a seção atual se o parágrafo corresponder ao padrão
             secoes[secao_atual] = ""
         else:
-            secoes[secao_atual] += paragrafo + "\n"
+            secoes[secao_atual] += paragrafo + "\n"  # Adiciona o parágrafo à seção atual
 
     return secoes
 
 # Função para salvar os dados em um arquivo JSON
 def salvar_como_json(dados, caminho_saida):
     with open(caminho_saida, 'w', encoding='utf-8') as file:
-        json.dump(dados, file, ensure_ascii=False, indent=4)
+        json.dump(dados, file, ensure_ascii=False, indent=4)  # Salva os dados no arquivo JSON
 
 # Função para processar e salvar cada intervalo como JSON
 def processar_e_salvar(texto_paginas, secao_inicial, caminho_pasta_base, nome_arquivo):
-    secoes = identificar_secoes(" ".join([entrada['text'] for entrada in texto_paginas]), secao_inicial)
-    caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}.json")
-    salvar_como_json(secoes, caminho_saida)
+    secoes = identificar_secoes(" ".join([entrada['text'] for entrada in texto_paginas]), secao_inicial)  # Identifica as seções no texto
+    caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}.json")  # Define o caminho de saída
+    salvar_como_json(secoes, caminho_saida)  # Salva as seções como JSON
 
 ### 3. Função para Carregar e Extrair Referências
 
@@ -124,19 +124,19 @@ def preencher_dados_faltantes(titulo):
 def upload_and_extract_references(uploaded_file):
     references = {}
     try:
-        if uploaded_file.name.endswith('.json'):
-            references = json.load(uploaded_file)
+        if uploaded_file.name.endswith('.json'):  # Verifica se o arquivo é JSON
+            references = json.load(uploaded_file)  # Carrega as referências do arquivo JSON
             with open("references.json", 'w') as file:
-                json.dump(references, file, indent=4)
+                json.dump(references, file, indent=4)  # Salva as referências em um arquivo JSON
             return "references.json"
-        elif uploaded_file.name.endswith('.pdf'):
-            texto_paginas = extrair_texto_pdf(uploaded_file)
+        elif uploaded_file.name.endswith('.pdf'):  # Verifica se o arquivo é PDF
+            texto_paginas = extrair_texto_pdf(uploaded_file)  # Extrai o texto do PDF
             if not texto_paginas:
                 st.error("Nenhum texto extraído do PDF.")
                 return pd.DataFrame()
-            df = text_to_dataframe(texto_paginas)
+            df = text_to_dataframe(texto_paginas)  # Converte o texto extraído em um DataFrame
             if not df.empty:
-                df.to_csv("references.csv", index=False)
+                df.to_csv("references.csv", index=False)  # Salva o DataFrame em um arquivo CSV
                 return df
             else:
                 st.error("Nenhum texto extraído do PDF.")
@@ -162,7 +162,7 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
         'user_prompt': user_prompt,
         'api_response': api_response,
         'agent_used': agent_used,
-        'agent_description': agent_description
+        'agent_description': str(agent_description)  # Garantir que o agent_description seja string
     }
     if os.path.exists(API_USAGE_FILE):
         with open(API_USAGE_FILE, 'r+') as file:
@@ -174,63 +174,23 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
         with open(API_USAGE_FILE, 'w') as file:
             json.dump([entry], file, indent=4)
 
-# Função para lidar com limite de taxa
-def handle_rate_limit(error_message: str, action: str):
-    if 'rate_limit_exceeded' in error_message:
-        wait_time = re.search(r'try again in (\d+\.?\d*)s', error_message)
-        if wait_time:
-            wait_time = float(wait_time.group(1))
-            st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
-            time.sleep(wait_time)
-        else:
-            st.warning("Limite de taxa atingido. Aguardando 60 segundos...")
-            time.sleep(60)
-        # Alterna para a próxima chave de API disponível
-        API_KEYS[action].append(API_KEYS[action].pop(0))
-    else:
-        raise Exception(error_message)
-
-# Função para salvar o histórico de chat
-def save_chat_history(user_input, user_prompt, expert_response, chat_history_file=CHAT_HISTORY_FILE):
-    chat_entry = {
-        'user_input': user_input,
-        'user_prompt': user_prompt,
-        'expert_response': expert_response
-    }
-    if os.path.exists(chat_history_file):
-        with open(chat_history_file, 'r+') as file:
-            chat_history = json.load(file)
-            chat_history.append(chat_entry)
-            file.seek(0)
-            json.dump(chat_history, file, indent=4)
-    else:
-        with open(chat_history_file, 'w') as file:
-            json.dump([chat_entry], file, indent=4)
-
-# Função para carregar o histórico de chat
-def load_chat_history(chat_history_file=CHAT_HISTORY_FILE):
-    if os.path.exists(chat_history_file):
-        with open(chat_history_file, 'r') as file:
-            chat_history = json.load(file)
-        return chat_history
-    return []
-
-# Função para limpar o histórico de chat
-def clear_chat_history(chat_history_file=CHAT_HISTORY_FILE):
-    if os.path.exists(chat_history_file):
-        os.remove(chat_history_file)
-
 # Função para carregar o uso da API
 def load_api_usage():
     if os.path.exists(API_USAGE_FILE):
         with open(API_USAGE_FILE, 'r') as file:
             api_usage = json.load(file)
+        # Converter agent_description para string
+        for entry in api_usage:
+            entry['agent_description'] = str(entry['agent_description'])
         return api_usage
     return []
 
 # Função para plotar o uso da API
 def plot_api_usage(api_usage):
     df = pd.DataFrame(api_usage)
+    
+    # Garantir que agent_description seja string
+    df['agent_description'] = df['agent_description'].astype(str)
 
     if 'action' not in df.columns:
         st.error("A coluna 'action' não foi encontrada no dataframe de uso da API.")
