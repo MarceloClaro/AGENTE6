@@ -80,15 +80,19 @@ def extrair_texto_pdf_intervalos(file, pagina_inicial, pagina_final, limite_pagi
                 pagina = pdf.pages[num_pagina]
                 texto_pagina = pagina.extract_text()
                 if texto_pagina:
-                    texto_intervalo.append(texto_pagina)
+                    texto_intervalo.append({'page': num_pagina + 1, 'text': texto_pagina})
             if texto_intervalo:
-                intervalos_texto.append(" ".join(texto_intervalo))
+                intervalos_texto.append(texto_intervalo)
     return intervalos_texto
 
 # Função para converter texto em DataFrame
-def text_to_dataframe(texts):
-    data = {f'Page {i+1}': [text] for i, text in enumerate(texts)}
-    df = pd.DataFrame.from_dict(data, orient='index').transpose()
+def text_to_dataframe(intervalos_texto):
+    dados = {'Page': [], 'Text': []}
+    for intervalo in intervalos_texto:
+        for entrada in intervalo:
+            dados['Page'].append(entrada['page'])
+            dados['Text'].append(entrada['text'])
+    df = pd.DataFrame(dados)
     return df
 
 # Função para identificar seções com base em expressões regulares
@@ -485,7 +489,7 @@ def save_expert(expert_title: str, expert_description: str):
             file.seek(0)
             json.dump(agents, file, indent=4)
     else:
-        with open(FILEPATH, 'w') as file:
+        with open(FILEPATH, 'w') as file):
             json.dump([new_expert], file, indent=4)
 
 ### 6. Interface Principal com Streamlit
@@ -657,11 +661,11 @@ def referencias_para_historico(df_referencias, chat_history_file=CHAT_HISTORY_FI
             titulo = row.get('titulo', 'Título Desconhecido')
             autor = row.get('autor', 'Autor Desconhecido')
             ano = row.get('ano', 'Ano Desconhecido')
-            paginas = row.get('paginas', 'Páginas Desconhecidas')
+            paginas = row.get('Page', 'Página Desconhecida')
             
             chat_entry = {
                 'user_input': f"Título: {titulo}",
-                'user_prompt': f"Autor: {autor}\nAno: {ano}\nPáginas: {paginas}",
+                'user_prompt': f"Autor: {autor}\nAno: {ano}\nPágina: {paginas}",
                 'expert_response': 'Informação adicionada ao histórico de chat como referência.'
             }
             
