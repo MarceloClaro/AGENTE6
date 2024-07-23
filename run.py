@@ -1,4 +1,3 @@
-#Para implementar a consulta ao DataFrame e utilizar as APIs para contextualizar e refinar as respostas, é necessário integrar as funções de extração de texto do PDF, a manipulação do DataFrame, e as interações com as APIs. Vou fazer isso seguindo a estrutura básica fornecida no seu código inicial, com foco na extração, consulta e refinamento de respostas. Vou adicionar funções específicas para consultar o DataFrame e utilizar a API para contextualizar as respostas com base nos dados do DataFrame.
 
 ### 1. Importações e Configurações Iniciais
 
@@ -417,7 +416,9 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             start_time = time.time()
             while True:
                 try:
-                    completion = client.chat.completions.create(
+                    completion = client.chat.completions.create
+
+(
                         messages=[
                             {"role": "system", "content": "Você é um assistente útil."},
                             {"role": "user", "content": prompt},
@@ -532,6 +533,7 @@ with col2:
                 st.write("### Dados Extraídos do PDF")
                 st.dataframe(df)
                 st.session_state.references_path = "references.csv"
+                st.session_state.references_df = df  # Salva o DataFrame no estado da sessão
 
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number)
         st.session_state.resposta_original = st.session_state.resposta_assistente
@@ -540,7 +542,13 @@ with col2:
 
     if refine_clicked:
         if st.session_state.resposta_assistente:
-            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_file, chat_history, interaction_number)
+            if 'references_df' in st.session_state:
+                # Extrai texto do DataFrame e adiciona às referências
+                references_text = st.session_state.references_df.to_string()
+            else:
+                references_text = None
+
+            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_text, chat_history, interaction_number)
             save_chat_history(user_input, user_prompt, st.session_state.resposta_refinada)
         else:
             st.warning("Por favor, busque uma resposta antes de refinar.")
@@ -582,16 +590,12 @@ with st.sidebar.expander("Insights do Código"):
     - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA, para gerar respostas mais precisas e personalizadas.
     - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de linguagem natural de alta performance para gerar respostas precisas.
     - Refinamento de respostas: O código permite que o usuário refine as respostas do modelo de linguagem, tornando-as mais precisas e relevantes para a consulta.
-    - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do
-
- modelo de linguagem.
+    - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do modelo de linguagem.
 
     **Pontos positivos:**
     - Personalização: O aplicativo permite que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas de acordo com suas necessidades.
     - Precisão: A integração com a API Groq e o refinamento de respostas garantem que as respostas sejam precisas e relevantes para a consulta.
-    - Flexibilidade: O código é
-
- flexível o suficiente para permitir que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas.
+    - Flexibilidade: O código é flexível o suficiente para permitir que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas.
 
     **Limitações:**
     - Dificuldade de uso: O aplicativo pode ser difícil de usar para os usuários que não têm experiência com modelos de linguagem ou API.
@@ -599,8 +603,7 @@ with st.sidebar.expander("Insights do Código"):
     - Necessidade de treinamento adicional: O modelo de linguagem pode precisar de treinamento adicional para lidar com consultas mais complexas ou específicas.
 
     **Importância de ter colocado instruções em chinês:**
-    A linguagem chinesa tem uma densidade de informação mais alta do que muitas outras línguas, o que significa que os modelos de linguagem precisam processar menos tokens para entender o contexto e gerar respostas precisas. Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens. Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz.
-
+    A linguagem chinesa tem uma densidade de informação mais alta do que muitas outras línguas, o que significa que os modelos de linguagem precisam processar menos tokens para entender o contexto e gerar respostas precisas. Isso torna a linguagem chinesa mais apropriada para a utilização de modelos de linguagem com baixa quantidade de tokens. Portanto, ter colocado instruções em chinês no código é um recurso importante para garantir que o aplicativo possa lidar com consultas em chinês de forma eficaz. 
     Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas. No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais.
     """)
 
@@ -625,7 +628,7 @@ if api_usage:
 # Botão para resetar os gráficos
 if st.sidebar.button("Resetar Gráficos"):
     reset_api_usage()
-
+```
 
 ### Considerações Finais
 
