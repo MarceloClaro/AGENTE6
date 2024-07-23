@@ -332,8 +332,11 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
         references_text = ""
         if references_df is not None:
-            for index, row in references_df.iterrows():
-                references_text += f"Título: {row['titulo']}\nAutor: {row['autor']}\nAno: {row['ano']}\nPáginas: {row['paginas']}\n\n"
+            if all(col in references_df.columns for col in ['titulo', 'autor', 'ano', 'paginas']):
+                for index, row in references_df.iterrows():
+                    references_text += f"Título: {row['titulo']}\nAutor: {row['autor']}\nAno: {row['ano']}\nPáginas: {row['paginas']}\n\n"
+            else:
+                st.warning("O DataFrame de referências não contém as colunas necessárias ('titulo', 'autor', 'ano', 'paginas').")
 
         phase_two_prompt = (
             f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
