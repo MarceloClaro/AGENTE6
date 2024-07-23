@@ -97,7 +97,7 @@ def identificar_secoes(texto, secao_inicial):
     secao_atual = secao_inicial
     secoes[secao_atual] = ""
 
-    paragrafos são texto.split('\n')
+    paragrafos = texto.split('\n')
     for paragrafo in paragrafos:
         match = re.match(r'Parte \d+\.', paragrafo) or re.match(r'Capítulo \d+: .*', paragrafo) or re.match(r'\d+\.\d+ .*', paragrafo)
         if match:
@@ -216,7 +216,7 @@ def save_chat_history(user_input, user_prompt, expert_response, chat_history_fil
             file.seek(0)
             json.dump(chat_history, file, indent=4)
     else:
-        with open(chat_history_file, 'w') as file:
+        with open(chat_history_file, 'w') as file):
             json.dump([chat_entry], file, indent=4)
 
 # Função para carregar o histórico de chat
