@@ -189,9 +189,14 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
 # Função para lidar com limite de taxa
 def handle_rate_limit(error_message: str, action: str):
     if 'rate_limit_exceeded' in error_message:
-        wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
-        st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
-        time.sleep(wait_time)
+        wait_time = re.search(r'try again in (\d+\.?\d*)s', error_message)
+        if wait_time:
+            wait_time = float(wait_time.group(1))
+            st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
+            time.sleep(wait_time)
+        else:
+            st.warning("Limite de taxa atingido. Aguardando 60 segundos...")
+            time.sleep(60)
         # Alterna para a próxima chave de API disponível
         API_KEYS[action].append(API_KEYS[action].pop(0))
     else:
@@ -340,19 +345,19 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
         for entry in chat_history:
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
-        references_text = ""
+        references_context = ""
         if references_df is not None:
             for index, row in references_df.iterrows():
                 titulo = row.get('titulo', 'Título Desconhecido')
                 autor = row.get('autor', 'Autor Desconhecido')
                 ano = row.get('ano', 'Ano Desconhecido')
                 paginas = row.get('paginas', 'Páginas Desconhecidas')
-                references_text += f"Título: {titulo}\nAutor: {autor}\nAno: {ano}\nPáginas: {paginas}\n\n"
+                references_context += f"Título: {titulo}\nAutor: {autor}\nAno: {ano}\nPáginas: {paginas}\n\n"
 
         phase_two_prompt = (
             f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
             f"\n\nHistórico do chat:{history_context}"
-            f"\n\nReferências:\n{references_text}"
+            f"\n\nReferências:\n{references_context}"
         )
         phase_two_response = get_completion(phase_two_prompt)
 
@@ -363,7 +368,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     return expert_title, phase_two_response
 
 # Função para refinar resposta
-def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_text: str, chat_history: list, interaction_number: int) -> str:
+def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_context: str, chat_history: list, interaction_number: int) -> str:
     try:
         client = Groq(api_key=get_api_key('refine'))
 
@@ -402,10 +407,10 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         refine_prompt = (
             f"{expert_title}, refine a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
             f"\n\nHistórico do chat:{history_context}"
-            f"\n\nReferências:\n{references_text}"
+            f"\n\nReferências:\n{references_context}"
         )
 
-        if not references_text:
+        if not references_context:
             refine_prompt += (
                 f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
             )
@@ -548,8 +553,15 @@ with col2:
 
     if refine_clicked:
         if st.session_state.resposta_assistente:
-            references_text = st.session_state.references_df.to_string() if 'references_df' in st.session_state else None
-            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_text, chat_history, interaction_number)
+            references_context = ""
+            if 'references_df' in st.session_state:
+                for index, row in st.session_state.references_df.iterrows():
+                    titulo = row.get('titulo', 'Título Desconhecido')
+                    autor = row.get('autor', 'Autor Desconhecido')
+                    ano = row.get('ano', 'Ano Desconhecido')
+                    paginas = row.get('paginas', 'Páginas Desconhecidas')
+                    references_context += f"Título: {titulo}\nAutor: {autor}\nAno: {ano}\nPáginas: {paginas}\n\n"
+            st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_context, chat_history, interaction_number)
             save_chat_history(user_input, user_prompt, st.session_state.resposta_refinada)
         else:
             st.warning("Por favor, busque uma resposta antes de refinar.")
