@@ -479,13 +479,13 @@ def save_expert(expert_title: str, expert_description: str):
         "descricao": expert_description
     }
     if os.path.exists(FILEPATH):
-        with open(FILEPATH, 'r+') as file:
+        with open(FILEPATH, 'r+') as file):
             agents = json.load(file)
             agents.append(new_expert)
             file.seek(0)
             json.dump(agents, file, indent=4)
     else:
-        with open(FILEPATH, 'w') as file:
+        with open(FILEPATH, 'w') as file):
             json.dump([new_expert], file, indent=4)
 
 ### 6. Interface Principal com Streamlit
