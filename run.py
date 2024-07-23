@@ -1,4 +1,7 @@
-#1. Importações e Configurações Iniciais__________________________
+
+
+#### 1. Importações e Configurações Iniciais
+
 import os
 import pdfplumber
 import json
@@ -60,19 +63,22 @@ def load_agent_options() -> list:
                 st.error("Erro ao ler o arquivo de Agentes. Por favor, verifique o formato.")
     return agent_options
 
-#2. Funções para Extração e Processamento de PDF__________________________
-#Adicionei verificações de limites de página e logs para facilitar a depuração.__________________________
+
+#### 2. Funções para Extração e Processamento de PDF
+
+#Adicionamos ajustes para definir `pagina_final` como a última página do PDF se for maior do que o total de páginas e verificações para `pagina_inicial` e `pagina_final`.
+
+
 # Função para extrair texto de PDFs usando pdfplumber
 def extrair_texto_pdf_intervalos(file, pagina_inicial, pagina_final, limite_paginas):
     intervalos_texto = []
     with pdfplumber.open(file) as pdf:
         total_paginas = len(pdf.pages)
-        if pagina_inicial < 1 or pagina_inicial > total_paginas:
-            st.error(f"Erro: página inicial ({pagina_inicial}) fora dos limites. Total de páginas no PDF: {total_paginas}.")
-            return intervalos_texto
-        if pagina_final < 1 or pagina_final > total_paginas:
-            st.error(f"Erro: página final ({pagina_final}) fora dos limites. Total de páginas no PDF: {total_paginas}.")
-            return intervalos_texto
+        
+        if pagina_inicial < 1:
+            pagina_inicial = 1
+        if pagina_final > total_paginas:
+            pagina_final = total_paginas
         if pagina_inicial > pagina_final:
             st.error(f"Erro: página inicial ({pagina_inicial}) maior que a página final ({pagina_final}).")
             return intervalos_texto
@@ -127,8 +133,12 @@ def processar_e_salvar(intervalos_texto, secao_inicial, caminho_pasta_base, nome
         secoes = identificar_secoes(texto_intervalo, secao_inicial)
         caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}_{i}.json")
         salvar_como_json(secoes, caminho_saida)
-#3. Função para Carregar e Extrair Referências__________________________
-#Adicionei logs para depuração e verificação de arquivo válido.__________________________
+
+
+#### 3. Função para Carregar e Extrair Referências
+
+#Adicionei logs para depuração e verificação de arquivo válido.
+
 # Função para fazer upload e extração de textos de arquivos JSON ou PDF
 def upload_and_extract_references(uploaded_file):
     references = {}
@@ -153,9 +163,14 @@ def upload_and_extract_references(uploaded_file):
                 return pd.DataFrame()
     except Exception as e:
         st.error(f"Erro ao carregar e extrair referências: {e}")
-        return pd.DataFrame()   
-#4. Funções de Interação com a API__________________________
-#Incluindo as funções necessárias para registrar o uso da API e lidar com limites de taxa.__________________________
+        return pd.DataFrame()
+
+
+#### 4. Funções de Interação com a API
+
+#Incluindo as funções necessárias para registrar o uso da API e lidar com limites de taxa.
+
+
 # Função para obter o número máximo de tokens de um modelo
 def get_max_tokens(model_name: str) -> int:
     return MODEL_MAX_TOKENS.get(model_name, 4096)
@@ -180,6 +195,8 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
             file.seek(0)
             json.dump(api_usage, file, indent=4)
     else:
+
+
         with open(API_USAGE_FILE, 'w') as file:
             json.dump([entry], file, indent=4)
 
@@ -269,7 +286,11 @@ def reset_api_usage():
     if os.path.exists(API_USAGE_FILE):
         os.remove(API_USAGE_FILE)
     st.success("Os dados de uso da API foram resetados.")
-#5. Funções para Interação com o Assistente__________________________
+
+
+#### 5. Funções para Interação com o Assistente
+
+
 # Função para buscar resposta do assistente
 def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, interaction_number: int) -> Tuple[str, str]:
     phase_two_response = ""
@@ -391,7 +412,9 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 
         if not references_file:
             refine_prompt += (
-                f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
+                f"\n\nDe
+
+vido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
             )
 
         refined_response = get_completion(refine_prompt)
@@ -466,7 +489,11 @@ def save_expert(expert_title: str, expert_description: str):
     else:
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
-#6. Interface Principal com Streamlit__________________________
+
+
+#### 6. Interface Principal com Streamlit
+
+
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
 
@@ -568,7 +595,9 @@ with st.sidebar.expander("Insights do Código"):
     O código do Consultor de PDFs + IA é um exemplo de uma aplicação de chat baseada em modelos de linguagem (LLMs) utilizando a biblioteca Streamlit e a API Groq. Aqui, vamos analisar detalhadamente o código e discutir suas inovações, pontos positivos e limitações.
 
     **Inovações:**
-    - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA, para gerar respostas mais precisas e personalizadas.
+    - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA,
+
+ para gerar respostas mais precisas e personalizadas.
     - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de linguagem natural de alta performance para gerar respostas precisas.
     - Refinamento de respostas: O código permite que o usuário refine as respostas do modelo de linguagem, tornando-as mais precisas e relevantes para a consulta.
     - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do modelo de linguagem.
@@ -610,3 +639,8 @@ if api_usage:
 # Botão para resetar os gráficos
 if st.sidebar.button("Resetar Gráficos"):
     reset_api_usage()
+
+
+### Considerações Finais
+
+#Este código agora deve lidar adequadamente com a extração de texto de PDFs, estruturando e salvando o texto em JSON para consultas futuras. Ele também garante que todas as funções necessárias sejam definidas antes de serem chamadas e adiciona verificações de limites de página para evitar erros "list index out of range". Certifique-se de testar completamente o código para garantir que ele atenda às suas necessidades específicas.
