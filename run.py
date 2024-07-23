@@ -642,6 +642,39 @@ if api_usage:
 if st.sidebar.button("Resetar Gráficos"):
     reset_api_usage()
 
-### Considerações Finais
+# Função para carregar referências de um arquivo CSV
+def carregar_referencias():
+    if os.path.exists('references.csv'):
+        df_referencias = pd.read_csv('references.csv')
+        return df_referencias
+    else:
+        return pd.DataFrame()
 
-#Este código foi revisado para lidar adequadamente com a extração de texto de PDFs, estruturando e salvando o texto em JSON para consultas futuras. Ele também garante que todas as funções necessárias sejam definidas antes de serem chamadas e adiciona verificações de limites de página para evitar erros "list index out of range". Certifique-se de testar completamente o código para garantir que ele atenda às suas necessidades específicas.
+# Função para transformar referências em histórico de chat
+def referencias_para_historico(df_referencias, chat_history_file=CHAT_HISTORY_FILE):
+    if not df_referencias.empty:
+        for _, row in df_referencias.iterrows():
+            titulo = row.get('titulo', 'Título Desconhecido')
+            autor = row.get('autor', 'Autor Desconhecido')
+            ano = row.get('ano', 'Ano Desconhecido')
+            paginas = row.get('paginas', 'Páginas Desconhecidas')
+            
+            chat_entry = {
+                'user_input': f"Título: {titulo}",
+                'user_prompt': f"Autor: {autor}\nAno: {ano}\nPáginas: {paginas}",
+                'expert_response': 'Informação adicionada ao histórico de chat como referência.'
+            }
+            
+            if os.path.exists(chat_history_file):
+                with open(chat_history_file, 'r+') as file:
+                    chat_history = json.load(file)
+                    chat_history.append(chat_entry)
+                    file.seek(0)
+                    json.dump(chat_history, file, indent=4)
+            else:
+                with open(chat_history_file, 'w') as file:
+                    json.dump([chat_entry], file, indent=4)
+
+# Chama a função para transformar as referências em histórico de chat
+df_referencias = carregar_referencias()
+referencias_para_historico(df_referencias)
