@@ -122,6 +122,16 @@ def processar_e_salvar(intervalos_texto, secao_inicial, caminho_pasta_base, nome
 
 ### 3. Função para Carregar e Extrair Referências
 
+# Função fictícia para simular a chamada de uma API que preenche dados faltantes
+def preencher_dados_faltantes(titulo):
+    # Esta função deve ser substituída por uma chamada real a uma API externa
+    return {
+        'titulo': titulo,
+        'autor': 'Autor Desconhecido',
+        'ano': 'Ano Desconhecido',
+        'paginas': 'Páginas Desconhecidas'
+    }
+
 # Função para fazer upload e extração de textos de arquivos JSON ou PDF
 def upload_and_extract_references(uploaded_file):
     references = {}
@@ -332,11 +342,13 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
         references_text = ""
         if references_df is not None:
-            if all(col in references_df.columns for col in ['titulo', 'autor', 'ano', 'paginas']):
-                for index, row in references_df.iterrows():
-                    references_text += f"Título: {row['titulo']}\nAutor: {row['autor']}\nAno: {row['ano']}\nPáginas: {row['paginas']}\n\n"
-            else:
-                st.warning("O DataFrame de referências não contém as colunas necessárias ('titulo', 'autor', 'ano', 'paginas').")
+            for index, row in references_df.iterrows():
+                if pd.isna(row['titulo']) or pd.isna(row['autor']) or pd.isna(row['ano']) or pd.isna(row['paginas']):
+                    preenchido = preencher_dados_faltantes(row['titulo'])
+                    row['autor'] = preenchido['autor']
+                    row['ano'] = preenchido['ano']
+                    row['paginas'] = preenchido['paginas']
+                references_text += f"Título: {row['titulo']}\nAutor: {row['autor']}\nAno: {row['ano']}\nPáginas: {row['paginas']}\n\n"
 
         phase_two_prompt = (
             f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
@@ -391,11 +403,12 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         refine_prompt = (
             f"{expert_title}, refine a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
             f"\n\nHistórico do chat:{history_context}"
+            f"\n\nReferências:\n{references_text}"
         )
 
-        if references_text:
+        if not references_text:
             refine_prompt += (
-                f"\n\nUse as seguintes referências para melhorar sua resposta:\n{references_text}"
+                f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
             )
 
         refined_response = get_completion(refine_prompt)
