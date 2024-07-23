@@ -7,7 +7,7 @@ import streamlit as st
 from typing import Tuple
 import time
 import matplotlib.pyplot as plt
-import seaborn as sns  # Importando a biblioteca Seaborn
+import seaborn as sns  # Corrigido: Importar a biblioteca Seaborn
 from groq import Groq
 
 # Configurações da página do Streamlit
@@ -266,7 +266,7 @@ def reset_api_usage():
 ### 5. Funções para Interação com o Assistente
 
 # Função para buscar resposta do assistente
-def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, interaction_number: int) -> Tuple[str, str]:
+def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, interaction_number: int, references_df: pd.DataFrame = None) -> Tuple[str, str]:
     phase_two_response = ""
     expert_title = ""
     expert_description = ""
@@ -330,9 +330,15 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
         for entry in chat_history:
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
+        references_text = ""
+        if references_df is not None:
+            for index, row in references_df.iterrows():
+                references_text += f"Título: {row['titulo']}\nAutor: {row['autor']}\nAno: {row['ano']}\nPáginas: {row['paginas']}\n\n"
+
         phase_two_prompt = (
             f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
             f"\n\nHistórico do chat:{history_context}"
+            f"\n\nReferências:\n{references_text}"
         )
         phase_two_response = get_completion(phase_two_prompt)
 
@@ -520,19 +526,14 @@ with col2:
                 st.session_state.references_path = "references.csv"
                 st.session_state.references_df = df  # Salva o DataFrame no estado da sessão
 
-        st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number)
+        st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number, st.session_state.get('references_df'))
         st.session_state.resposta_original = st.session_state.resposta_assistente
         st.session_state.resposta_refinada = ""
         save_chat_history(user_input, user_prompt, st.session_state.resposta_assistente)
 
     if refine_clicked:
         if st.session_state.resposta_assistente:
-            if 'references_df' in st.session_state:
-                # Extrai texto do DataFrame e adiciona às referências
-                references_text = st.session_state.references_df.to_string()
-            else:
-                references_text = None
-
+            references_text = st.session_state.references_df.to_string() if 'references_df' in st.session_state else None
             st.session_state.resposta_refinada = refine_response(st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente, user_input, user_prompt, model_name, temperature, references_text, chat_history, interaction_number)
             save_chat_history(user_input, user_prompt, st.session_state.resposta_refinada)
         else:
