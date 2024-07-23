@@ -1,27 +1,26 @@
-# Importação das bibliotecas necessárias
-import os  # Biblioteca para operações com o sistema operacional
-import pdfplumber  # Biblioteca para extração de texto de PDFs
-import json  # Biblioteca para manipulação de dados em formato JSON
-import re  # Biblioteca para operações com expressões regulares
-import pandas as pd  # Biblioteca para manipulação e análise de dados
-import streamlit as st  # Biblioteca para criar interfaces web interativas
-from typing import Tuple  # Biblioteca para suporte a tipos de dados em anotações de função
-import time  # Biblioteca para operações com tempo
-import matplotlib.pyplot as plt  # Biblioteca para criação de gráficos
-import seaborn as sns  # Biblioteca para criação de gráficos estatísticos
-from groq import Groq  # Importa a API Groq para interações com modelos de linguagem
+import os
+import pdfplumber
+import json
+import re
+import pandas as pd
+import streamlit as st
+from typing import Tuple
+import time
+import matplotlib.pyplot as plt
+import seaborn as sns
+from groq import Groq
 
 # Configurações da página do Streamlit
 st.set_page_config(
-    page_title="Consultor de PDFs + IA",  # Define o título da página
-    page_icon="logo.png",  # Define o ícone da página
-    layout="wide",  # Define o layout da página como amplo
+    page_title="Consultor de PDFs + IA",
+    page_icon="logo.png",
+    layout="wide",
 )
 
 # Definição de caminhos para arquivos
-FILEPATH = "agents.json"  # Caminho para o arquivo de agentes
-CHAT_HISTORY_FILE = 'chat_history.json'  # Caminho para o arquivo de histórico de chat
-API_USAGE_FILE = 'api_usage.json'  # Caminho para o arquivo de uso da API
+FILEPATH = "agents.json"
+CHAT_HISTORY_FILE = 'chat_history.json'
+API_USAGE_FILE = 'api_usage.json'
 
 # Definição de modelos e tokens
 MODEL_MAX_TOKENS = {
@@ -29,33 +28,33 @@ MODEL_MAX_TOKENS = {
     'llama3-70b-8192': 8192,
     'llama3-8b-8192': 8192,
     'gemma-7b-it': 8192,
-}  # Dicionário que mapeia nomes de modelos ao número máximo de tokens suportados
+}
 
 # Chaves da API
 API_KEYS = {
     "fetch": ["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", "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"],
     "refine": ["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", "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"],
     "evaluate": ["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", "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"]
-}  # Dicionário de chaves da API para diferentes ações
+}
 
 # Função para obter a próxima chave de API disponível
 def get_api_key(action: str) -> str:
-    keys = API_KEYS.get(action, [])  # Obtém as chaves de API para a ação especificada
+    keys = API_KEYS.get(action, [])
     if keys:
-        return keys.pop(0)  # Retorna e remove a primeira chave disponível
+        return keys.pop(0)
     else:
-        raise ValueError(f"No API keys available for action: {action}")  # Levanta um erro se não houver chaves disponíveis
+        raise ValueError(f"No API keys available for action: {action}")
 
 # Função para carregar opções de agentes
 def load_agent_options() -> list:
-    agent_options = ['Escolher um especialista...']  # Opção padrão na lista de agentes
-    if os.path.exists(FILEPATH):  # Verifica se o arquivo de agentes existe
+    agent_options = ['Escolher um especialista...']
+    if os.path.exists(FILEPATH):
         with open(FILEPATH, 'r') as file:
             try:
-                agents = json.load(file)  # Carrega os agentes do arquivo
-                agent_options.extend([agent["agente"] for agent in agents if "agente" in agent])  # Adiciona os agentes à lista de opções
+                agents = json.load(file)
+                agent_options.extend([agent["agente"] for agent in agents if "agente" in agent])
             except json.JSONDecodeError:
-                st.error("Erro ao ler o arquivo de Agentes. Por favor, verifique o formato.")  # Mostra um erro se houver problema ao ler o arquivo
+                st.error("Erro ao ler o arquivo de Agentes. Por favor, verifique o formato.")
     return agent_options
 
 ### 2. Funções para Extração e Processamento de PDF
