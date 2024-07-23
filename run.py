@@ -1,6 +1,4 @@
-
 ### 1. Importações e Configurações Iniciais
-
 
 import os
 import pdfplumber
@@ -11,6 +9,7 @@ import streamlit as st
 from typing import Tuple
 import time
 import matplotlib.pyplot as plt
+import seaborn as sns
 from groq import Groq
 
 # Configurações da página do Streamlit
@@ -60,9 +59,7 @@ def load_agent_options() -> list:
                 st.error("Erro ao ler o arquivo de Agentes. Por favor, verifique o formato.")
     return agent_options
 
-
 ### 2. Funções para Extração e Processamento de PDF
-
 
 # Função para extrair texto de PDFs usando pdfplumber
 def extrair_texto_pdf_intervalos(file, pagina_inicial, pagina_final, limite_paginas):
@@ -125,9 +122,7 @@ def processar_e_salvar(intervalos_texto, secao_inicial, caminho_pasta_base, nome
         caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}_{i}.json")
         salvar_como_json(secoes, caminho_saida)
 
-
 ### 3. Função para Carregar e Extrair Referências
-
 
 # Função para fazer upload e extração de textos de arquivos JSON ou PDF
 def upload_and_extract_references(uploaded_file):
@@ -154,9 +149,7 @@ def upload_and_extract_references(uploaded_file):
         st.error(f"Erro ao carregar e extrair referências: {e}")
         return pd.DataFrame()
 
-
 ### 4. Funções de Interação com a API
-
 
 # Função para obter o número máximo de tokens de um modelo
 def get_max_tokens(model_name: str) -> int:
@@ -197,7 +190,9 @@ def handle_rate_limit(error_message: str, action: str):
         raise Exception(error_message)
 
 # Função para salvar o histórico de chat
-def save_chat_history(user_input, user_prompt, expert_response, chat_history_file=CHAT_HISTORY_FILE):
+def save_chat_history(user_input, user_prompt
+
+, expert_response, chat_history_file=CHAT_HISTORY_FILE):
     chat_entry = {
         'user_input': user_input,
         'user_prompt': user_prompt,
@@ -272,9 +267,7 @@ def reset_api_usage():
         os.remove(API_USAGE_FILE)
     st.success("Os dados de uso da API foram resetados.")
 
-
 ### 5. Funções para Interação com o Assistente
-
 
 # Função para buscar resposta do assistente
 def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, interaction_number: int) -> Tuple[str, str]:
@@ -354,7 +347,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     return expert_title, phase_two_response
 
 # Função para refinar resposta
-def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_file: str, chat_history: list, interaction_number: int) -> str:
+def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_text: str, chat_history: list, interaction_number: int) -> str:
     try:
         client = Groq(api_key=get_api_key('refine'))
 
@@ -395,9 +388,9 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"\n\nHistórico do chat:{history_context}"
         )
 
-        if not references_file:
+        if references_text:
             refine_prompt += (
-                f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
+                f"\n\nUse as seguintes referências para melhorar sua resposta:\n{references_text}"
             )
 
         refined_response = get_completion(refine_prompt)
@@ -416,7 +409,9 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             start_time = time.time()
             while True:
                 try:
-                    completion = client.chat.completions.create (
+                    completion = client.chat.com
+
+pletions.create(
                         messages=[
                             {"role": "system", "content": "Você é um assistente útil."},
                             {"role": "user", "content": prompt},
@@ -470,12 +465,10 @@ def save_expert(expert_title: str, expert_description: str):
             file.seek(0)
             json.dump(agents, file, indent=4)
     else:
-        with open(FILEPATH, 'w') as file:
+        with open(FILEPATH, 'w') as file):
             json.dump([new_expert], file, indent=4)
 
-
 ### 6. Interface Principal com Streamlit
-
 
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
@@ -626,7 +619,6 @@ if api_usage:
 # Botão para resetar os gráficos
 if st.sidebar.button("Resetar Gráficos"):
     reset_api_usage()
-
 
 ### Considerações Finais
 
