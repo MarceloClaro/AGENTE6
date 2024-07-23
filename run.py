@@ -315,7 +315,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 st.error("Erro ao extrair título e descrição do especialista.")
         else:
             if os.path.exists(FILEPATH):
-                with open(FILEPATH, 'r') as file):
+                with open(FILEPATH, 'r') as file:
                     agents = json.load(file)
                     agent_found = next((agent for agent in agents if agent["agente"] == agent_selection), None)
                     if agent_found:
