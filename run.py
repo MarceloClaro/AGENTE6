@@ -161,7 +161,7 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
         'user_prompt': user_prompt,
         'api_response': api_response,
         'agent_used': agent_used,
-        'agent_description': agent_description
+        'agent_description': str(agent_description)  # Converte a descrição do agente para string
     }
     if os.path.exists(API_USAGE_FILE):
         with open(API_USAGE_FILE, 'r+') as file:
