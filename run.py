@@ -342,18 +342,12 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
         references_text = ""
         if references_df is not None:
-            required_columns = ['titulo', 'autor', 'ano', 'paginas']
-            missing_columns = [col for col in required_columns if col not in references_df.columns]
-            if missing_columns:
-                st.error(f"Colunas faltantes nas referências: {', '.join(missing_columns)}")
-                return "", ""
             for index, row in references_df.iterrows():
-                if pd.isna(row['titulo']) or pd.isna(row['autor']) or pd.isna(row['ano']) or pd.isna(row['paginas']):
-                    preenchido = preencher_dados_faltantes(row['titulo'])
-                    row['autor'] = preenchido['autor']
-                    row['ano'] = preenchido['ano']
-                    row['paginas'] = preenchido['paginas']
-                references_text += f"Título: {row['titulo']}\nAutor: {row['autor']}\nAno: {row['ano']}\nPáginas: {row['paginas']}\n\n"
+                titulo = row.get('titulo', 'Título Desconhecido')
+                autor = row.get('autor', 'Autor Desconhecido')
+                ano = row.get('ano', 'Ano Desconhecido')
+                paginas = row.get('paginas', 'Páginas Desconhecidas')
+                references_text += f"Título: {titulo}\nAutor: {autor}\nAno: {ano}\nPáginas: {paginas}\n\n"
 
         phase_two_prompt = (
             f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
