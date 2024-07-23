@@ -473,11 +473,11 @@ def save_expert(expert_title: str, expert_description: str):
     else:
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
-```
+
 
 ### 6. Interface Principal com Streamlit
 
-```python
+
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
 
