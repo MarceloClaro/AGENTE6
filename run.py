@@ -494,6 +494,20 @@ def save_expert(expert_title: str, expert_description: str):
 
 ### 6. Interface Principal com Streamlit
 
+# Inicializa variáveis de sessão
+if 'resposta_assistente' not in st.session_state:
+    st.session_state.resposta_assistente = ""
+if 'descricao_especialista_ideal' not in st.session_state:
+    st.session_state.descricao_especialista_ideal = ""
+if 'resposta_refinada' not in st.session_state:
+    st.session_state.resposta_refinada = ""
+if 'resposta_original' not in st.session_state:
+    st.session_state.resposta_original = ""
+if 'rag_resposta' not in st.session_state:
+    st.session_state.rag_resposta = ""
+if 'references_df' not in st.session_state:
+    st.session_state.references_df = pd.DataFrame()
+
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
 
@@ -526,17 +540,6 @@ with col1:
     references_file = st.file_uploader("Upload do arquivo JSON ou PDF com referências (opcional)", type=["json", "pdf"], key="arquivo_referencias")
 
 with col2:
-    if 'resposta_assistente' not in st.session_state:
-        st.session_state.resposta_assistente = ""
-    if 'descricao_especialista_ideal' not in st.session_state:
-        st.session_state.descricao_especialista_ideal = ""
-    if 'resposta_refinada' not in st.session_state:
-        st.session_state.resposta_refinada = ""
-    if 'resposta_original' not in st.session_state:
-        st.session_state.resposta_original = ""
-    if 'rag_resposta' not in st.session_state:
-        st.session_state.rag_resposta = ""
-
     container_saida = st.container()
 
     chat_history = load_chat_history()[-memory_selection:]
@@ -558,7 +561,7 @@ with col2:
     if refine_clicked:
         if st.session_state.resposta_assistente:
             references_context = ""
-            if 'references_df' in st.session_state:
+            if not st.session_state.references_df.empty:
                 for index, row in st.session_state.references_df.iterrows():
                     titulo = row.get('titulo', 'Título Desconhecido')
                     autor = row.get('autor', 'Autor Desconhecido')
