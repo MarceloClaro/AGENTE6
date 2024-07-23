@@ -1,3 +1,4 @@
+#1. Importações e Configurações Iniciais__________________________
 import os
 import pdfplumber
 import json
@@ -59,12 +60,24 @@ def load_agent_options() -> list:
                 st.error("Erro ao ler o arquivo de Agentes. Por favor, verifique o formato.")
     return agent_options
 
-
+#2. Funções para Extração e Processamento de PDF__________________________
+#Adicionei verificações de limites de página e logs para facilitar a depuração.__________________________
 # Função para extrair texto de PDFs usando pdfplumber
 def extrair_texto_pdf_intervalos(file, pagina_inicial, pagina_final, limite_paginas):
     intervalos_texto = []
     with pdfplumber.open(file) as pdf:
-        for inicio_intervalo in range(pagina_inicial - 1, min(pagina_final, len(pdf.pages)), limite_paginas):
+        total_paginas = len(pdf.pages)
+        if pagina_inicial < 1 or pagina_inicial > total_paginas:
+            st.error(f"Erro: página inicial ({pagina_inicial}) fora dos limites. Total de páginas no PDF: {total_paginas}.")
+            return intervalos_texto
+        if pagina_final < 1 or pagina_final > total_paginas:
+            st.error(f"Erro: página final ({pagina_final}) fora dos limites. Total de páginas no PDF: {total_paginas}.")
+            return intervalos_texto
+        if pagina_inicial > pagina_final:
+            st.error(f"Erro: página inicial ({pagina_inicial}) maior que a página final ({pagina_final}).")
+            return intervalos_texto
+
+        for inicio_intervalo in range(pagina_inicial - 1, pagina_final, limite_paginas):
             fim_intervalo = min(inicio_intervalo + limite_paginas, pagina_final)
             texto_intervalo = []
             for num_pagina in range(inicio_intervalo, fim_intervalo):
@@ -114,9 +127,8 @@ def processar_e_salvar(intervalos_texto, secao_inicial, caminho_pasta_base, nome
         secoes = identificar_secoes(texto_intervalo, secao_inicial)
         caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}_{i}.json")
         salvar_como_json(secoes, caminho_saida)
-
-
-
+#3. Função para Carregar e Extrair Referências__________________________
+#Adicionei logs para depuração e verificação de arquivo válido.__________________________
 # Função para fazer upload e extração de textos de arquivos JSON ou PDF
 def upload_and_extract_references(uploaded_file):
     references = {}
@@ -128,6 +140,9 @@ def upload_and_extract_references(uploaded_file):
             return "references.json"
         elif uploaded_file.name.endswith('.pdf'):
             intervalos_texto = extrair_texto_pdf_intervalos(uploaded_file, 1, 1000, 10)
+            if not intervalos_texto:
+                st.error("Nenhum texto extraído do PDF.")
+                return pd.DataFrame()
             dfs = [text_to_dataframe(texto) for texto in intervalos_texto if texto]
             if dfs:
                 df = pd.concat(dfs, ignore_index=True)
@@ -138,9 +153,9 @@ def upload_and_extract_references(uploaded_file):
                 return pd.DataFrame()
     except Exception as e:
         st.error(f"Erro ao carregar e extrair referências: {e}")
-        return pd.DataFrame()
-
-
+        return pd.DataFrame()   
+#4. Funções de Interação com a API__________________________
+#Incluindo as funções necessárias para registrar o uso da API e lidar com limites de taxa.__________________________
 # Função para obter o número máximo de tokens de um modelo
 def get_max_tokens(model_name: str) -> int:
     return MODEL_MAX_TOKENS.get(model_name, 4096)
@@ -254,8 +269,7 @@ def reset_api_usage():
     if os.path.exists(API_USAGE_FILE):
         os.remove(API_USAGE_FILE)
     st.success("Os dados de uso da API foram resetados.")
-
-
+#5. Funções para Interação com o Assistente__________________________
 # Função para buscar resposta do assistente
 def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, interaction_number: int) -> Tuple[str, str]:
     phase_two_response = ""
@@ -452,8 +466,7 @@ def save_expert(expert_title: str, expert_description: str):
     else:
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
-
-
+#6. Interface Principal com Streamlit__________________________
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
 
