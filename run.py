@@ -416,9 +416,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             start_time = time.time()
             while True:
                 try:
-                    completion = client.chat.completions.create
-
-(
+                    completion = client.chat.completions.create (
                         messages=[
                             {"role": "system", "content": "Você é um assistente útil."},
                             {"role": "user", "content": prompt},
