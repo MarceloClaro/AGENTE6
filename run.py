@@ -412,9 +412,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 
         if not references_file:
             refine_prompt += (
-                f"\n\nDe
-
-vido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
+                f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
             )
 
         refined_response = get_completion(refine_prompt)
