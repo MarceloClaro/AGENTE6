@@ -192,9 +192,7 @@ def handle_rate_limit(error_message: str, action: str):
         wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
         st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
         time.sleep(wait_time)
-        # Alterna para
-
- a próxima chave de API disponível
+        # Alterna para a próxima chave de API disponível
         API_KEYS[action].append(API_KEYS[action].pop(0))
     else:
         raise Exception(error_message)
