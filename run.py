@@ -1,6 +1,7 @@
-#Aqui está a versão revisada do seu código para extrair texto de cada página de um PDF e armazená-lo em colunas de um DataFrame:
+#Para implementar a consulta ao DataFrame e utilizar as APIs para contextualizar e refinar as respostas, é necessário integrar as funções de extração de texto do PDF, a manipulação do DataFrame, e as interações com as APIs. Vou fazer isso seguindo a estrutura básica fornecida no seu código inicial, com foco na extração, consulta e refinamento de respostas. Vou adicionar funções específicas para consultar o DataFrame e utilizar a API para contextualizar as respostas com base nos dados do DataFrame.
 
 ### 1. Importações e Configurações Iniciais
+
 
 import os
 import pdfplumber
@@ -10,7 +11,6 @@ import pandas as pd
 import streamlit as st
 from typing import Tuple
 import time
-import seaborn as sns
 import matplotlib.pyplot as plt
 from groq import Groq
 
@@ -192,7 +192,9 @@ def handle_rate_limit(error_message: str, action: str):
         wait_time = float(error_message.split("try again in")[1].split("s.")[0].strip())
         st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
         time.sleep(wait_time)
-        # Alterna para a próxima chave de API disponível
+        # Alterna para
+
+ a próxima chave de API disponível
         API_KEYS[action].append(API_KEYS[action].pop(0))
     else:
         raise Exception(error_message)
@@ -473,11 +475,11 @@ def save_expert(expert_title: str, expert_description: str):
     else:
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
-
+```
 
 ### 6. Interface Principal com Streamlit
 
-
+```python
 # Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
 
@@ -582,7 +584,9 @@ with st.sidebar.expander("Insights do Código"):
     - Suporte a múltiplos modelos de linguagem: O código permite que o usuário escolha entre diferentes modelos de linguagem, como o LLaMA, para gerar respostas mais precisas e personalizadas.
     - Integração com a API Groq: A integração com a API Groq permite que o aplicativo utilize a capacidade de processamento de linguagem natural de alta performance para gerar respostas precisas.
     - Refinamento de respostas: O código permite que o usuário refine as respostas do modelo de linguagem, tornando-as mais precisas e relevantes para a consulta.
-    - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do modelo de linguagem.
+    - Avaliação com o RAG: A avaliação com o RAG (Rational Agent Generator) permite que o aplicativo avalie a qualidade e a precisão das respostas do
+
+ modelo de linguagem.
 
     **Pontos positivos:**
     - Personalização: O aplicativo permite que o usuário escolha entre diferentes modelos de linguagem e personalize as respostas de acordo com suas necessidades.
