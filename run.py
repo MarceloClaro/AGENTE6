@@ -335,11 +335,11 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
         references_context = ""
         if references_df is not None:
             for index, row in references_df.iterrows():
-                titulo = row.get('titulo', 'Título Desconhecido')
+                titulo = row.get('titulo', row['Text'][:50] + '...')
                 autor = row.get('autor', 'Autor Desconhecido')
                 ano = row.get('ano', 'Ano Desconhecido')
                 paginas = row.get('Page', 'Página Desconhecida')
-                references_context += f"Título: {titulo}\nAutor: {autor}\nAno: {ano}\nPáginas: {paginas}\n\n"
+                references_context += f"Título: {titulo}\nAutor: {autor}\nAno: {ano}\nPágina: {paginas}\n\n"
 
         phase_two_prompt = (
             f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
