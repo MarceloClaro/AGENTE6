@@ -59,39 +59,23 @@ def load_agent_options() -> list:
 
 ### 2. Funções para Extração e Processamento de PDF
 
-# Função para extrair texto de PDFs usando pdfplumber
-def extrair_texto_pdf_intervalos(file, pagina_inicial, pagina_final, limite_paginas):
-    intervalos_texto = []
+# Função para extrair texto de todas as páginas de um PDF usando pdfplumber
+def extrair_texto_pdf(file):
+    texto_paginas = []
     with pdfplumber.open(file) as pdf:
-        total_paginas = len(pdf.pages)
-        
-        if pagina_inicial < 1:
-            pagina_inicial = 1
-        if pagina_final > total_paginas:
-            pagina_final = total_paginas
-        if pagina_inicial > pagina_final:
-            st.error(f"Erro: página inicial ({pagina_inicial}) maior que a página final ({pagina_final}).")
-            return intervalos_texto
-
-        for inicio_intervalo in range(pagina_inicial - 1, pagina_final, limite_paginas):
-            fim_intervalo = min(inicio_intervalo + limite_paginas, pagina_final)
-            texto_intervalo = []
-            for num_pagina in range(inicio_intervalo, fim_intervalo):
-                pagina = pdf.pages[num_pagina]
-                texto_pagina = pagina.extract_text()
-                if texto_pagina:
-                    texto_intervalo.append({'page': num_pagina + 1, 'text': texto_pagina})
-            if texto_intervalo:
-                intervalos_texto.append(texto_intervalo)
-    return intervalos_texto
+        for num_pagina in range(len(pdf.pages)):
+            pagina = pdf.pages[num_pagina]
+            texto_pagina = pagina.extract_text()
+            if texto_pagina:
+                texto_paginas.append({'page': num_pagina + 1, 'text': texto_pagina})
+    return texto_paginas
 
 # Função para converter texto em DataFrame
-def text_to_dataframe(intervalos_texto):
+def text_to_dataframe(texto_paginas):
     dados = {'Page': [], 'Text': []}
-    for intervalo in intervalos_texto:
-        for entrada in intervalo:
-            dados['Page'].append(entrada['page'])
-            dados['Text'].append(entrada['text'])
+    for entrada in texto_paginas:
+        dados['Page'].append(entrada['page'])
+        dados['Text'].append(entrada['text'])
     df = pd.DataFrame(dados)
     return df
 
@@ -118,11 +102,10 @@ def salvar_como_json(dados, caminho_saida):
         json.dump(dados, file, ensure_ascii=False, indent=4)
 
 # Função para processar e salvar cada intervalo como JSON
-def processar_e_salvar(intervalos_texto, secao_inicial, caminho_pasta_base, nome_arquivo):
-    for i, texto_intervalo in enumerate(intervalos_texto):
-        secoes = identificar_secoes(" ".join([entrada['text'] for entrada in texto_intervalo]), secao_inicial)
-        caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}_{i}.json")
-        salvar_como_json(secoes, caminho_saida)
+def processar_e_salvar(texto_paginas, secao_inicial, caminho_pasta_base, nome_arquivo):
+    secoes = identificar_secoes(" ".join([entrada['text'] for entrada in texto_paginas]), secao_inicial)
+    caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}.json")
+    salvar_como_json(secoes, caminho_saida)
 
 ### 3. Função para Carregar e Extrair Referências
 
@@ -146,11 +129,11 @@ def upload_and_extract_references(uploaded_file):
                 json.dump(references, file, indent=4)
             return "references.json"
         elif uploaded_file.name.endswith('.pdf'):
-            intervalos_texto = extrair_texto_pdf_intervalos(uploaded_file, 1, 1000, 10)
-            if not intervalos_texto:
+            texto_paginas = extrair_texto_pdf(uploaded_file)
+            if not texto_paginas:
                 st.error("Nenhum texto extraído do PDF.")
                 return pd.DataFrame()
-            df = text_to_dataframe(intervalos_texto)
+            df = text_to_dataframe(texto_paginas)
             if not df.empty:
                 df.to_csv("references.csv", index=False)
                 return df
@@ -563,7 +546,7 @@ with col2:
             references_context = ""
             if not st.session_state.references_df.empty:
                 for index, row in st.session_state.references_df.iterrows():
-                    titulo = row.get('titulo', 'Título Desconhecido')
+                    titulo = row.get('titulo', row['Text'][:50] + '...')
                     autor = row.get('autor', 'Autor Desconhecido')
                     ano = row.get('ano', 'Ano Desconhecido')
                     paginas = row.get('Page', 'Página Desconhecida')
@@ -661,14 +644,14 @@ def carregar_referencias():
 def referencias_para_historico(df_referencias, chat_history_file=CHAT_HISTORY_FILE):
     if not df_referencias.empty:
         for _, row in df_referencias.iterrows():
-            titulo = row.get('titulo', 'Título Desconhecido')
+            titulo = row.get('titulo', row['Text'][:50] + '...')
             autor = row.get('autor', 'Autor Desconhecido')
             ano = row.get('ano', 'Ano Desconhecido')
             paginas = row.get('Page', 'Página Desconhecida')
             
             chat_entry = {
                 'user_input': f"Título: {titulo}",
-                'user_prompt': f"Autor: {autor}\nAno: {ano}\nPágina: {paginas}",
+                'user_prompt': f"Autor: {autor}\nAno: {ano}\nPágina: {paginas}\nTexto: {row['Text']}",
                 'expert_response': 'Informação adicionada ao histórico de chat como referência.'
             }
             
