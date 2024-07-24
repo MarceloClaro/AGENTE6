@@ -317,11 +317,51 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 references_context += f"Título: {titulo}\nAutor: {autor}\nAno: {ano}\nPáginas: {paginas}\n\n"
 
         phase_two_prompt = (
-            f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
-            f"\n\nHistórico do chat:{history_context}"
-            f"\n\nReferências:\n{references_context}"
-        )
-        phase_two_response = get_completion(phase_two_prompt)
+    f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
+    f"\n\nHistórico do chat:{history_context}"
+    f"\n\nReferências:\n{references_context}"
+    f"\n\nInstruções para Resposta Detalhada:\n"
+    f"Por favor, responda à solicitação abaixo de forma completa e detalhada. Certifique-se de abordar todos os aspectos relevantes e fornecer informações claras e precisas. Utilize exemplos, dados e explicações adicionais para enriquecer a resposta. Estruture a resposta de maneira lógica e coerente, facilitando a compreensão do leitor.\n"
+    f"Solicitação:\n"
+    f"{user_input}\n"
+    f"{user_prompt}\n"
+    f"\nCritérios de Resposta:\n"
+    f"1. Introdução: Apresente uma visão geral do tópico, contextualizando a solicitação.\n"
+    f"2. Detalhamento: Explique detalhadamente cada aspecto relevante da solicitação. Utilize subtítulos para organizar as informações e facilitar a leitura.\n"
+    f"3. Exemplos e Dados: Inclua exemplos práticos, estudos de caso, estatísticas ou dados relevantes que ilustrem os pontos abordados.\n"
+    f"4. Análise Crítica: Forneça uma análise crítica dos dados e informações apresentados, destacando implicações, benefícios e possíveis desafios.\n"
+    f"5. Conclusão: Resuma os pontos principais da resposta e apresente uma conclusão clara e objetiva.\n"
+    f"6. Referências: Se aplicável, cite fontes e referências que foram utilizadas para compor a resposta.\n"
+    f"\nExemplo de Estrutura:\n"
+    f"1. Introdução\n"
+    f"- Contextualização do tema\n"
+    f"- Importância do tópico\n"
+    f"2. Aspectos Relevantes\n"
+    f"- Subtítulo 1\n"
+    f"  - Detalhamento do subtítulo 1\n"
+    f"  - Exemplos e dados\n"
+    f"- Subtítulo 2\n"
+    f"  - Detalhamento do subtítulo 2\n"
+    f"  - Exemplos e dados\n"
+    f"3. Análise Crítica\n"
+    f"- Discussão dos dados apresentados\n"
+    f"- Implicações e desafios\n"
+    f"4. Conclusão\n"
+    f"- Resumo dos pontos principais\n"
+    f"- Conclusão objetiva\n"
+    f"5. Referências\n"
+    f"- Listagem de fontes e referências\n"
+    f"\nAplique este formato para garantir que a resposta seja abrangente, informativa e bem-estruturada. Certifique-se de revisar e editar a resposta para clareza e precisão antes de enviá-la.\n"
+    f"\n---\n"
+    f"\ngen_id: [gerado automaticamente]\n"
+    f"seed: [gerado automaticamente]\n"
+    f"\nTodos os direitos reservados.\n"
+    f"\nGuidance Instagram:\n"
+    f"[Guia para o Instagram](https://www.instagram.com/marceloclaro.geomaker/)"
+)
+
+phase_two_response = get_completion(phase_two_prompt)
+
 
     except Exception as e:
         st.error(f"Ocorreu um erro: {e}")
