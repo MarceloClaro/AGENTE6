@@ -41,9 +41,17 @@ API_KEYS = {
 def get_api_key(action: str) -> str:
     keys = API_KEYS.get(action, [])  # Obtém as chaves de API para a ação especificada
     if keys:
-        return keys.pop(0)  # Retorna e remove a primeira chave disponível
+        return keys[0]  # Retorna a primeira chave disponível
     else:
         raise ValueError(f"No API keys available for action: {action}")  # Levanta um erro se não houver chaves disponíveis
+
+# Função para alternar para a próxima chave de API disponível
+def rotate_api_key(action: str):
+    keys = API_KEYS.get(action, [])
+    if keys:
+        keys.append(keys.pop(0))  # Move a primeira chave para o final da lista
+    else:
+        raise ValueError(f"No API keys available for action: {action}")
 
 # Função para carregar opções de agentes
 def load_agent_options() -> list:
@@ -176,6 +184,7 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
 # Função para lidar com limite de taxa
 def handle_rate_limit(error_message: str, action: str):
     if 'rate_limit_exceeded' in error_message:
+        rotate_api_key(action)
         wait_time = re.search(r'try again in (\d+\.?\d*)s', error_message)
         if wait_time:
             wait_time = float(wait_time.group(1))
@@ -184,8 +193,6 @@ def handle_rate_limit(error_message: str, action: str):
         else:
             st.warning("Limite de taxa atingido. Aguardando 60 segundos...")
             time.sleep(60)
-        # Alterna para a próxima chave de API disponível
-        API_KEYS[action].append(API_KEYS[action].pop(0))
     else:
         raise Exception(error_message)
 
@@ -303,6 +310,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                         st.error(f"Ocorreu um erro: Error code: 503 - {e}")
                         return ""
                     handle_rate_limit(str(e), 'fetch')
+                    rotate_api_key('fetch')
                     # Increase backoff time for next attempt
                     backoff_time = min(backoff_time * 2, 64)  # Cap at 64 seconds
                     st.warning(f"Limite de taxa atingido. Aguardando {backoff_time} segundos...")
@@ -392,6 +400,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                         st.error(f"Ocorreu um erro: Error code: 503 - {e}")
                         return ""
                     handle_rate_limit(str(e), 'refine')
+                    rotate_api_key('refine')
                     # Increase backoff time for next attempt
                     backoff_time = min(backoff_time * 2, 64)  # Cap at 64 seconds
                     st.warning(f"Limite de taxa atingido. Aguardando {backoff_time} segundos...")
@@ -452,6 +461,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
                         st.error(f"Ocorreu um erro: Error code: 503 - {e}")
                         return ""
                     handle_rate_limit(str(e), 'evaluate')
+                    rotate_api_key('evaluate')
                     # Increase backoff time for next attempt
                     backoff_time = min(backoff_time * 2, 64)  # Cap at 64 seconds
                     st.warning(f"Limite de taxa atingido. Aguardando {backoff_time} segundos...")
