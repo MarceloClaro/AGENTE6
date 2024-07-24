@@ -1,26 +1,26 @@
-import os  # Operações com o sistema operacional
-import pdfplumber  # Extração de texto de PDFs
-import json  # Manipulação de dados em formato JSON
-import re  # Operações com expressões regulares
-import pandas as pd  # Manipulação e análise de dados
-import streamlit as st  # Criação de interfaces web interativas
-from typing import Tuple  # Suporte a tipos de dados em anotações de função
-import time  # Operações com tempo
-import matplotlib.pyplot as plt  # Criação de gráficos
-import seaborn as sns  # Criação de gráficos estatísticos
-from groq import Groq  # API Groq para interações com modelos de linguagem
+import os
+import pdfplumber
+import json
+import re
+import pandas as pd
+import streamlit as st
+from typing import Tuple
+import time
+import matplotlib.pyplot as plt
+import seaborn as sns
+from groq import Groq
 
 # Configurações da página do Streamlit
 st.set_page_config(
-    page_title="Consultor de PDFs + IA",  # Título da página
-    page_icon="logo.png",  # Ícone da página
-    layout="wide",  # Layout amplo
+    page_title="Consultor de PDFs + IA",
+    page_icon="logo.png",
+    layout="wide",
 )
 
 # Definição de caminhos para arquivos
-FILEPATH = "agents.json"  # Caminho para o arquivo de agentes
-CHAT_HISTORY_FILE = 'chat_history.json'  # Caminho para o arquivo de histórico de chat
-API_USAGE_FILE = 'api_usage.json'  # Caminho para o arquivo de uso da API
+FILEPATH = "agents.json"
+CHAT_HISTORY_FILE = 'chat_history.json'
+API_USAGE_FILE = 'api_usage.json'
 
 # Definição de modelos e tokens
 MODEL_MAX_TOKENS = {
@@ -28,41 +28,38 @@ MODEL_MAX_TOKENS = {
     'llama3-70b-8192': 8192,
     'llama3-8b-8192': 8192,
     'gemma-7b-it': 8192,
-}  # Dicionário de modelos com o número máximo de tokens suportados
+}
 
 # Chaves da API
 API_KEYS = {
     "fetch": ["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", "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"],
     "refine": ["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", "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"],
     "evaluate": ["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", "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"]
-}  # Dicionário de chaves da API para diferentes ações
+}
+
+# Função para alternar a chave de API em caso de limite de taxa atingido
+def rotate_api_key(action: str):
+    if action in API_KEYS:
+        API_KEYS[action].append(API_KEYS[action].pop(0))
 
 # Função para obter a próxima chave de API disponível
 def get_api_key(action: str) -> str:
-    keys = API_KEYS.get(action, [])  # Obtém as chaves de API para a ação especificada
-    if keys:
-        return keys[0]  # Retorna a primeira chave disponível
-    else:
-        raise ValueError(f"No API keys available for action: {action}")  # Levanta um erro se não houver chaves disponíveis
-
-# Função para alternar para a próxima chave de API disponível
-def rotate_api_key(action: str):
     keys = API_KEYS.get(action, [])
     if keys:
-        keys.append(keys.pop(0))  # Move a primeira chave para o final da lista
+        return keys[0]
     else:
         raise ValueError(f"No API keys available for action: {action}")
 
 # Função para carregar opções de agentes
 def load_agent_options() -> list:
-    agent_options = ['Escolher um especialista...']  # Opção padrão na lista de agentes
-    if os.path.exists(FILEPATH):  # Verifica se o arquivo de agentes existe
+    agent_options = ['Escolher um especialista...']
+    if os.path.exists(FILEPATH):
         with open(FILEPATH, 'r') as file:
             try:
-                agents = json.load(file)  # Carrega os agentes do arquivo
-                agent_options.extend([agent["agente"] for agent in agents if "agente" in agent])  # Adiciona os agentes à lista de opções
+                agents = json.load(file)
+                agent_options.extend([agent["agente"] for agent in agents if "agente" in agent])
             except json.JSONDecodeError:
-                st.error("Erro ao ler o arquivo de Agentes. Por favor, verifique o formato.")  # Mostra um erro se houver problema ao ler o arquivo
+                st.error("Erro ao ler o arquivo de Agentes. Por favor, verifique o formato.")
     return agent_options
 
 ### 2. Funções para Extração e Processamento de PDF
@@ -119,7 +116,6 @@ def processar_e_salvar(texto_paginas, secao_inicial, caminho_pasta_base, nome_ar
 
 # Função fictícia para simular a chamada de uma API que preenche dados faltantes
 def preencher_dados_faltantes(titulo):
-    # Esta função deve ser substituída por uma chamada real a uma API externa
     return {
         'titulo': titulo,
         'autor': 'Autor Desconhecido',
@@ -169,7 +165,7 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
         'user_prompt': user_prompt,
         'api_response': api_response,
         'agent_used': agent_used,
-        'agent_description': agent_description
+        'agent_description': json.dumps(agent_description)  # Serialize as string
     }
     if os.path.exists(API_USAGE_FILE):
         with open(API_USAGE_FILE, 'r+') as file:
@@ -184,7 +180,6 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
 # Função para lidar com limite de taxa
 def handle_rate_limit(error_message: str, action: str):
     if 'rate_limit_exceeded' in error_message:
-        rotate_api_key(action)
         wait_time = re.search(r'try again in (\d+\.?\d*)s', error_message)
         if wait_time:
             wait_time = float(wait_time.group(1))
@@ -193,6 +188,7 @@ def handle_rate_limit(error_message: str, action: str):
         else:
             st.warning("Limite de taxa atingido. Aguardando 60 segundos...")
             time.sleep(60)
+        rotate_api_key(action)
     else:
         raise Exception(error_message)
 
@@ -237,6 +233,9 @@ def load_api_usage():
 # Função para plotar o uso da API
 def plot_api_usage(api_usage):
     df = pd.DataFrame(api_usage)
+
+    # Ensure that agent_description is deserialized
+    df['agent_description'] = df['agent_description'].apply(json.loads)
 
     if 'action' not in df.columns:
         st.error("A coluna 'action' não foi encontrada no dataframe de uso da API.")
@@ -284,7 +283,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
-            backoff_time = 1  # Initial backoff time in seconds
+            backoff_time = 1
             while True:
                 try:
                     completion = client.chat.completions.create(
@@ -310,9 +309,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                         st.error(f"Ocorreu um erro: Error code: 503 - {e}")
                         return ""
                     handle_rate_limit(str(e), 'fetch')
-                    rotate_api_key('fetch')
-                    # Increase backoff time for next attempt
-                    backoff_time = min(backoff_time * 2, 64)  # Cap at 64 seconds
+                    backoff_time = min(backoff_time * 2, 64)
                     st.warning(f"Limite de taxa atingido. Aguardando {backoff_time} segundos...")
                     time.sleep(backoff_time)
 
@@ -374,7 +371,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
-            backoff_time = 1  # Initial backoff time in seconds
+            backoff_time = 1
             while True:
                 try:
                     completion = client.chat.completions.create(
@@ -400,9 +397,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                         st.error(f"Ocorreu um erro: Error code: 503 - {e}")
                         return ""
                     handle_rate_limit(str(e), 'refine')
-                    rotate_api_key('refine')
-                    # Increase backoff time for next attempt
-                    backoff_time = min(backoff_time * 2, 64)  # Cap at 64 seconds
+                    backoff_time = min(backoff_time * 2, 64)
                     st.warning(f"Limite de taxa atingido. Aguardando {backoff_time} segundos...")
                     time.sleep(backoff_time)
 
@@ -435,7 +430,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
-            backoff_time = 1  # Initial backoff time in seconds
+            backoff_time = 1
             while True:
                 try:
                     completion = client.chat.completions.create(
@@ -461,9 +456,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
                         st.error(f"Ocorreu um erro: Error code: 503 - {e}")
                         return ""
                     handle_rate_limit(str(e), 'evaluate')
-                    rotate_api_key('evaluate')
-                    # Increase backoff time for next attempt
-                    backoff_time = min(backoff_time * 2, 64)  # Cap at 64 seconds
+                    backoff_time = min(backoff_time * 2, 64)
                     st.warning(f"Limite de taxa atingido. Aguardando {backoff_time} segundos...")
                     time.sleep(backoff_time)
 
