@@ -355,8 +355,6 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     f"\n---\n"
     f"\ngen_id: [gerado automaticamente]\n"
     f"seed: [gerado automaticamente]\n"
-    f"\nTodos os direitos reservados.\n"
-    f"\nGuidance Instagram:\n"
         )
         phase_two_response = get_completion(phase_two_prompt)
 
