@@ -452,7 +452,7 @@ def save_expert(expert_title: str, expert_description: str):
             file.seek(0)
             json.dump(agents, file, indent=4)
     else:
-        with open(FILEPATH, 'w') as file:
+        with open(FILEPATH, 'w') as file):
             json.dump([new_expert], file, indent=4)
 
 # Interface Principal com Streamlit
@@ -547,11 +547,16 @@ with col2:
             st.write(f"\n**#Avaliação com RAG:**\n{st.session_state.rag_resposta}")
 
     st.markdown("### Histórico do Chat")
-    for entry in chat_history:
-        st.write(f"**Entrada do Usuário:** {entry['user_input']}")
-        st.write(f"**Prompt do Usuário:** {entry['user_prompt']}")
-        st.write(f"**Resposta do Especialista:** {entry['expert_response']}")
-        st.markdown("---")
+    if chat_history:
+        tab_titles = [f"Interação {i+1}" for i in range(len(chat_history))]
+        tabs = st.tabs(tab_titles)
+        
+        for i, entry in enumerate(chat_history):
+            with tabs[i]:
+                st.write(f"**Entrada do Usuário:** {entry['user_input']}")
+                st.write(f"**Prompt do Usuário:** {entry['user_prompt']}")
+                st.write(f"**Resposta do Especialista:** {entry['expert_response']}")
+                st.markdown("---")
 
 if refresh_clicked:
     clear_chat_history()
