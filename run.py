@@ -1,65 +1,59 @@
-import os  # Operações com o sistema operacional
-import pdfplumber  # Extração de texto de PDFs
-import json  # Manipulação de dados em formato JSON
-import re  # Operações com expressões regulares
-import pandas as pd  # Manipulação e análise de dados
-import streamlit as st  # Criação de interfaces web interativas
-from typing import Tuple  # Suporte a tipos de dados em anotações de função
-import time  # Operações com tempo
-import matplotlib.pyplot as plt  # Criação de gráficos
-import seaborn as sns  # Criação de gráficos estatísticos
-from groq import Groq  # API Groq para interações com modelos de linguagem
+import os
+import pdfplumber
+import json
+import re
+import pandas as pd
+import streamlit as st
+from typing import Tuple
+import time
+import matplotlib.pyplot as plt
+import seaborn as sns
+from groq import Groq
 
 # Configurações da página do Streamlit
 st.set_page_config(
-    page_title="Consultor de PDFs + IA",  # Título da página
-    page_icon="logo.png",  # Ícone da página
-    layout="wide",  # Layout amplo
+    page_title="Consultor de PDFs + IA",
+    page_icon="logo.png",
+    layout="wide",
 )
 
-# Definição de caminhos para arquivos
-FILEPATH = "agents.json"  # Caminho para o arquivo de agentes
-CHAT_HISTORY_FILE = 'chat_history.json'  # Caminho para o arquivo de histórico de chat
-API_USAGE_FILE = 'api_usage.json'  # Caminho para o arquivo de uso da API
+# Definição de constantes
+FILEPATH = "agents.json"
+CHAT_HISTORY_FILE = 'chat_history.json'
+API_USAGE_FILE = 'api_usage.json'
 
-# Definição de modelos e tokens
 MODEL_MAX_TOKENS = {
     'mixtral-8x7b-32768': 32768,
     'llama3-70b-8192': 8192,
     'llama3-8b-8192': 8192,
     'gemma-7b-it': 8192,
-}  # Dicionário de modelos com o número máximo de tokens suportados
+}
 
-# Chaves da API
 API_KEYS = {
     "fetch": ["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", "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"],
     "refine": ["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", "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"],
     "evaluate": ["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", "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"]
-}  # Dicionário de chaves da API para diferentes ações
+}
 
-# Função para obter a próxima chave de API disponível
+# Funções utilitárias
 def get_api_key(action: str) -> str:
-    keys = API_KEYS.get(action, [])  # Obtém as chaves de API para a ação especificada
+    keys = API_KEYS.get(action, [])
     if keys:
-        return keys.pop(0)  # Retorna e remove a primeira chave disponível
+        return keys.pop(0)
     else:
-        raise ValueError(f"No API keys available for action: {action}")  # Levanta um erro se não houver chaves disponíveis
+        raise ValueError(f"No API keys available for action: {action}")
 
-# Função para carregar opções de agentes
 def load_agent_options() -> list:
-    agent_options = ['Escolher um especialista...']  # Opção padrão na lista de agentes
-    if os.path.exists(FILEPATH):  # Verifica se o arquivo de agentes existe
+    agent_options = ['Escolher um especialista...']
+    if os.path.exists(FILEPATH):
         with open(FILEPATH, 'r') as file:
             try:
-                agents = json.load(file)  # Carrega os agentes do arquivo
-                agent_options.extend([agent["agente"] for agent in agents if "agente" in agent])  # Adiciona os agentes à lista de opções
+                agents = json.load(file)
+                agent_options.extend([agent["agente"] for agent in agents if "agente" in agent])
             except json.JSONDecodeError:
-                st.error("Erro ao ler o arquivo de Agentes. Por favor, verifique o formato.")  # Mostra um erro se houver problema ao ler o arquivo
+                st.error("Erro ao ler o arquivo de Agentes. Por favor, verifique o formato.")
     return agent_options
 
-### 2. Funções para Extração e Processamento de PDF
-
-# Função para extrair texto de todas as páginas de um PDF usando pdfplumber
 def extrair_texto_pdf(file):
     texto_paginas = []
     with pdfplumber.open(file) as pdf:
@@ -70,16 +64,13 @@ def extrair_texto_pdf(file):
                 texto_paginas.append({'page': num_pagina + 1, 'text': texto_pagina})
     return texto_paginas
 
-# Função para converter texto em DataFrame
 def text_to_dataframe(texto_paginas):
     dados = {'Page': [], 'Text': []}
     for entrada in texto_paginas:
         dados['Page'].append(entrada['page'])
         dados['Text'].append(entrada['text'])
-    df = pd.DataFrame(dados)
-    return df
+    return pd.DataFrame(dados)
 
-# Função para identificar seções com base em expressões regulares
 def identificar_secoes(texto, secao_inicial):
     secoes = {}
     secao_atual = secao_inicial
@@ -96,22 +87,16 @@ def identificar_secoes(texto, secao_inicial):
 
     return secoes
 
-# Função para salvar os dados em um arquivo JSON
 def salvar_como_json(dados, caminho_saida):
     with open(caminho_saida, 'w', encoding='utf-8') as file:
         json.dump(dados, file, ensure_ascii=False, indent=4)
 
-# Função para processar e salvar cada intervalo como JSON
 def processar_e_salvar(texto_paginas, secao_inicial, caminho_pasta_base, nome_arquivo):
     secoes = identificar_secoes(" ".join([entrada['text'] for entrada in texto_paginas]), secao_inicial)
     caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}.json")
     salvar_como_json(secoes, caminho_saida)
 
-### 3. Função para Carregar e Extrair Referências
-
-# Função fictícia para simular a chamada de uma API que preenche dados faltantes
 def preencher_dados_faltantes(titulo):
-    # Esta função deve ser substituída por uma chamada real a uma API externa
     return {
         'titulo': titulo,
         'autor': 'Autor Desconhecido',
@@ -119,7 +104,6 @@ def preencher_dados_faltantes(titulo):
         'paginas': 'Páginas Desconhecidas'
     }
 
-# Função para fazer upload e extração de textos de arquivos JSON ou PDF
 def upload_and_extract_references(uploaded_file):
     references = {}
     try:
@@ -144,13 +128,9 @@ def upload_and_extract_references(uploaded_file):
         st.error(f"Erro ao carregar e extrair referências: {e}")
         return pd.DataFrame()
 
-### 4. Funções de Interação com a API
-
-# Função para obter o número máximo de tokens de um modelo
 def get_max_tokens(model_name: str) -> int:
     return MODEL_MAX_TOKENS.get(model_name, 4096)
 
-# Função para registrar o uso da API
 def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_taken: float, user_input: str, user_prompt: str, api_response: str, agent_used: str, agent_description: str):
     entry = {
         'action': action,
@@ -173,7 +153,6 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
         with open(API_USAGE_FILE, 'w') as file:
             json.dump([entry], file, indent=4)
 
-# Função para lidar com limite de taxa
 def handle_rate_limit(error_message: str, action: str):
     if 'rate_limit_exceeded' in error_message:
         wait_time = re.search(r'try again in (\d+\.?\d*)s', error_message)
@@ -184,12 +163,10 @@ def handle_rate_limit(error_message: str, action: str):
         else:
             st.warning("Limite de taxa atingido. Aguardando 60 segundos...")
             time.sleep(60)
-        # Alterna para a próxima chave de API disponível
         API_KEYS[action].append(API_KEYS[action].pop(0))
     else:
         raise Exception(error_message)
 
-# Função para salvar o histórico de chat
 def save_chat_history(user_input, user_prompt, expert_response, chat_history_file=CHAT_HISTORY_FILE):
     chat_entry = {
         'user_input': user_input,
@@ -206,7 +183,6 @@ def save_chat_history(user_input, user_prompt, expert_response, chat_history_fil
         with open(chat_history_file, 'w') as file:
             json.dump([chat_entry], file, indent=4)
 
-# Função para carregar o histórico de chat
 def load_chat_history(chat_history_file=CHAT_HISTORY_FILE):
     if os.path.exists(chat_history_file):
         with open(chat_history_file, 'r') as file:
@@ -214,12 +190,10 @@ def load_chat_history(chat_history_file=CHAT_HISTORY_FILE):
         return chat_history
     return []
 
-# Função para limpar o histórico de chat
 def clear_chat_history(chat_history_file=CHAT_HISTORY_FILE):
     if os.path.exists(chat_history_file):
         os.remove(chat_history_file)
 
-# Função para carregar o uso da API
 def load_api_usage():
     if os.path.exists(API_USAGE_FILE):
         with open(API_USAGE_FILE, 'r') as file:
@@ -227,7 +201,6 @@ def load_api_usage():
         return api_usage
     return []
 
-# Função para plotar o uso da API
 def plot_api_usage(api_usage):
     df = pd.DataFrame(api_usage)
 
@@ -235,7 +208,6 @@ def plot_api_usage(api_usage):
         st.error("A coluna 'action' não foi encontrada no dataframe de uso da API.")
         return
 
-    # Converte a coluna 'agent_description' para string para evitar problemas de serialização
     if 'agent_description' in df.columns:
         df['agent_description'] = df['agent_description'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
 
@@ -259,19 +231,14 @@ def plot_api_usage(api_usage):
 
     st.sidebar.pyplot(fig)
 
-    # Adicionar visualização do DataFrame no sidebar
     st.sidebar.markdown("### Uso da API - DataFrame")
     st.sidebar.dataframe(df)
 
-# Função para resetar o uso da API
 def reset_api_usage():
     if os.path.exists(API_USAGE_FILE):
         os.remove(API_USAGE_FILE)
     st.success("Os dados de uso da API foram resetados.")
 
-### 5. Funções para Interação com o Assistente
-
-# Função para buscar resposta do assistente
 def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str, temperature: float, agent_selection: str, chat_history: list, interaction_number: int, references_df: pd.DataFrame = None) -> Tuple[str, str]:
     phase_two_response = ""
     expert_title = ""
@@ -281,7 +248,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
-            backoff_time = 1  # Initial backoff time in seconds
+            backoff_time = 1
             while True:
                 try:
                     completion = client.chat.completions.create(
@@ -307,8 +274,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                         st.error(f"Ocorreu um erro: Error code: 503 - {e}")
                         return ""
                     handle_rate_limit(str(e), 'fetch')
-                    # Increase backoff time for next attempt
-                    backoff_time = min(backoff_time * 2, 64)  # Cap at 64 seconds
+                    backoff_time = min(backoff_time * 2, 64)
                     st.warning(f"Limite de taxa atingido. Aguardando {backoff_time} segundos...")
                     time.sleep(backoff_time)
 
@@ -363,14 +329,13 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
     return expert_title, phase_two_response
 
-# Função para refinar resposta
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_context: str, chat_history: list, interaction_number: int) -> str:
     try:
         client = Groq(api_key=get_api_key('refine'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
-            backoff_time = 1  # Initial backoff time in seconds
+            backoff_time = 1
             while True:
                 try:
                     completion = client.chat.completions.create(
@@ -396,8 +361,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                         st.error(f"Ocorreu um erro: Error code: 503 - {e}")
                         return ""
                     handle_rate_limit(str(e), 'refine')
-                    # Increase backoff time for next attempt
-                    backoff_time = min(backoff_time * 2, 64)  # Cap at 64 seconds
+                    backoff_time = min(backoff_time * 2, 64)
                     st.warning(f"Limite de taxa atingido. Aguardando {backoff_time} segundos...")
                     time.sleep(backoff_time)
 
@@ -423,14 +387,13 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         st.error(f"Ocorreu um erro durante o refinamento: {e}")
         return ""
 
-# Função para avaliar resposta com RAG
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
     try:
         client = Groq(api_key=get_api_key('evaluate'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
-            backoff_time = 1  # Initial backoff time in seconds
+            backoff_time = 1
             while True:
                 try:
                     completion = client.chat.completions.create(
@@ -456,8 +419,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
                         st.error(f"Ocorreu um erro: Error code: 503 - {e}")
                         return ""
                     handle_rate_limit(str(e), 'evaluate')
-                    # Increase backoff time for next attempt
-                    backoff_time = min(backoff_time * 2, 64)  # Cap at 64 seconds
+                    backoff_time = min(backoff_time * 2, 64)
                     st.warning(f"Limite de taxa atingido. Aguardando {backoff_time} segundos...")
                     time.sleep(backoff_time)
 
@@ -478,7 +440,6 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
         st.error(f"Ocorreu um erro durante a avaliação com RAG: {e}")
         return ""
 
-# Função para salvar o especialista gerado
 def save_expert(expert_title: str, expert_description: str):
     new_expert = {
         "agente": expert_title,
@@ -494,9 +455,8 @@ def save_expert(expert_title: str, expert_description: str):
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
-### 6. Interface Principal com Streamlit
+# Interface Principal com Streamlit
 
-# Inicializa variáveis de sessão
 if 'resposta_assistente' not in st.session_state:
     st.session_state.resposta_assistente = ""
 if 'descricao_especialista_ideal' not in st.session_state:
@@ -510,19 +470,15 @@ if 'rag_resposta' not in st.session_state:
 if 'references_df' not in st.session_state:
     st.session_state.references_df = pd.DataFrame()
 
-# Carrega as opções de Agentes a partir do arquivo JSON
 agent_options = load_agent_options()
 
-# Layout da página
 st.image('updating.gif', width=300, caption='Consultor de PDFs + IA', use_column_width='always', output_format='auto')
 st.markdown("<h1 style='text-align: center;'>Consultor de PDFs</h1>", unsafe_allow_html=True)
 st.markdown("<h2 style='text-align: center;'>Utilize nossa plataforma para consultas detalhadas em PDFs.</h2>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
-# Seleção de memória do chat
 memory_selection = st.selectbox("Selecione a quantidade de interações para lembrar:", options=[5, 10, 15, 25, 50, 100])
 
-# Caixa de entrada para solicitação do usuário
 st.write("Digite sua solicitação para que ela seja respondida pelo especialista ideal.")
 col1, col2 = st.columns(2)
 
@@ -553,7 +509,7 @@ with col2:
                 st.write("### Dados Extraídos do PDF")
                 st.dataframe(df)
                 st.session_state.references_path = "references.csv"
-                st.session_state.references_df = df  # Salva o DataFrame no estado da sessão
+                st.session_state.references_df = df
 
         st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number, st.session_state.get('references_df'))
         st.session_state.resposta_original = st.session_state.resposta_assistente
@@ -602,7 +558,6 @@ if refresh_clicked:
     st.session_state.clear()
     st.rerun()
 
-# Sidebar com manual de uso
 st.sidebar.image("logo.png", width=200)
 with st.sidebar.expander("Insights do Código"):
     st.markdown("""
@@ -629,7 +584,6 @@ with st.sidebar.expander("Insights do Código"):
     Em resumo, o código é uma aplicação inovadora que combina modelos de linguagem com a API Groq para proporcionar respostas precisas e personalizadas. No entanto, é importante considerar as limitações do aplicativo e trabalhar para melhorá-lo ainda mais.
     """)
 
-    # Informações de contato
     st.sidebar.image("eu.ico", width=80)
     st.sidebar.write("""
     Projeto Consultor de PDFs + IA 
@@ -642,24 +596,19 @@ with st.sidebar.expander("Insights do Código"):
     Instagram: [https://www.instagram.com/marceloclaro.consultorpdfs/](https://www.instagram.com/marceloclaro.consultorpdfs/)
     """)
 
-# Carrega o uso da API e plota o histograma
 api_usage = load_api_usage()
 if api_usage:
     plot_api_usage(api_usage)
 
-# Botão para resetar os gráficos
 if st.sidebar.button("Resetar Gráficos"):
     reset_api_usage()
 
-# Função para carregar referências de um arquivo CSV
 def carregar_referencias():
     if os.path.exists('references.csv'):
-        df_referencias = pd.read_csv('references.csv')
-        return df_referencias
+        return pd.read_csv('references.csv')
     else:
         return pd.DataFrame()
 
-# Função para transformar referências em histórico de chat
 def referencias_para_historico(df_referencias, chat_history_file=CHAT_HISTORY_FILE):
     if not df_referencias.empty:
         for _, row in df_referencias.iterrows():
@@ -684,6 +633,5 @@ def referencias_para_historico(df_referencias, chat_history_file=CHAT_HISTORY_FI
                 with open(chat_history_file, 'w') as file:
                     json.dump([chat_entry], file, indent=4)
 
-# Chama a função para transformar as referências em histórico de chat
 df_referencias = carregar_referencias()
 referencias_para_historico(df_referencias)
