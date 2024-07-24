@@ -92,7 +92,7 @@ def salvar_como_json(dados, caminho_saida):
         json.dump(dados, file, ensure_ascii=False, indent=4)
 
 def processar_e_salvar(texto_paginas, secao_inicial, caminho_pasta_base, nome_arquivo):
-    secoes = identificar_secoes(" ".join([entrada['text'] for entrada in texto_paginas]), secao_inicial)
+    secoes = identificar_secoes(" ".join([entrada['text'] for entrada em texto_paginas]), secao_inicial)
     caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}.json")
     salvar_como_json(secoes, caminho_saida)
 
@@ -186,7 +186,11 @@ def save_chat_history(user_input, user_prompt, expert_response, chat_history_fil
 def load_chat_history(chat_history_file=CHAT_HISTORY_FILE):
     if os.path.exists(chat_history_file):
         with open(chat_history_file, 'r') as file:
-            chat_history = json.load(file)
+            try:
+                chat_history = json.load(file)
+            except json.JSONDecodeError:
+                st.error("Erro ao ler o arquivo de histórico de chat. O arquivo pode estar corrompido.")
+                return []
         return chat_history
     return []
 
@@ -630,7 +634,11 @@ def referencias_para_historico(df_referencias, chat_history_file=CHAT_HISTORY_FI
             
             if os.path.exists(chat_history_file):
                 with open(chat_history_file, 'r+') as file:
-                    chat_history = json.load(file)
+                    try:
+                        chat_history = json.load(file)
+                    except json.JSONDecodeError:
+                        st.error("Erro ao ler o arquivo de histórico de chat. O arquivo pode estar corrompido.")
+                        chat_history = []
                     chat_history.append(chat_entry)
                     file.seek(0)
                     json.dump(chat_history, file, indent=4)
@@ -638,5 +646,6 @@ def referencias_para_historico(df_referencias, chat_history_file=CHAT_HISTORY_FI
                 with open(chat_history_file, 'w') as file:
                     json.dump([chat_entry], file, indent=4)
 
+# Carrega as referências do CSV e as transforma em histórico de chat
 df_referencias = carregar_referencias()
 referencias_para_historico(df_referencias)
