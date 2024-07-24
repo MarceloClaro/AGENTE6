@@ -357,10 +357,8 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     f"seed: [gerado automaticamente]\n"
     f"\nTodos os direitos reservados.\n"
     f"\nGuidance Instagram:\n"
-    f"[Guia para o Instagram](https://www.instagram.com/marceloclaro.geomaker/)"
-)
-
-phase_two_response = get_completion(phase_two_prompt)
+        )
+        phase_two_response = get_completion(phase_two_prompt)
 
 
     except Exception as e:
