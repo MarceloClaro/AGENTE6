@@ -277,6 +277,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
+            backoff_time = 1  # Initial backoff time in seconds
             while True:
                 try:
                     completion = client.chat.completions.create(
@@ -302,6 +303,10 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                         st.error(f"Ocorreu um erro: Error code: 503 - {e}")
                         return ""
                     handle_rate_limit(str(e), 'fetch')
+                    # Increase backoff time for next attempt
+                    backoff_time = min(backoff_time * 2, 64)  # Cap at 64 seconds
+                    st.warning(f"Limite de taxa atingido. Aguardando {backoff_time} segundos...")
+                    time.sleep(backoff_time)
 
         if agent_selection == "Escolher um especialista...":
             phase_one_prompt = (
@@ -361,6 +366,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
+            backoff_time = 1  # Initial backoff time in seconds
             while True:
                 try:
                     completion = client.chat.completions.create(
@@ -386,6 +392,10 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                         st.error(f"Ocorreu um erro: Error code: 503 - {e}")
                         return ""
                     handle_rate_limit(str(e), 'refine')
+                    # Increase backoff time for next attempt
+                    backoff_time = min(backoff_time * 2, 64)  # Cap at 64 seconds
+                    st.warning(f"Limite de taxa atingido. Aguardando {backoff_time} segundos...")
+                    time.sleep(backoff_time)
 
         history_context = ""
         for entry in chat_history:
@@ -416,6 +426,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
+            backoff_time = 1  # Initial backoff time in seconds
             while True:
                 try:
                     completion = client.chat.completions.create(
@@ -441,6 +452,10 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
                         st.error(f"Ocorreu um erro: Error code: 503 - {e}")
                         return ""
                     handle_rate_limit(str(e), 'evaluate')
+                    # Increase backoff time for next attempt
+                    backoff_time = min(backoff_time * 2, 64)  # Cap at 64 seconds
+                    st.warning(f"Limite de taxa atingido. Aguardando {backoff_time} segundos...")
+                    time.sleep(backoff_time)
 
         history_context = ""
         for entry in chat_history:
