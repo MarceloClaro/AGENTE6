@@ -92,7 +92,7 @@ def salvar_como_json(dados, caminho_saida):
         json.dump(dados, file, ensure_ascii=False, indent=4)
 
 def processar_e_salvar(texto_paginas, secao_inicial, caminho_pasta_base, nome_arquivo):
-    secoes = identificar_secoes(" ".join([entrada['text'] for [entrada em texto_paginas]), secao_inicial)
+    secoes = identificar_secoes(" ".join([entrada['text'] for entrada in texto_paginas]), secao_inicial)
     caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}.json")
     salvar_como_json(secoes, caminho_saida)
 
@@ -175,7 +175,10 @@ def save_chat_history(user_input, user_prompt, expert_response, chat_history_fil
     }
     if os.path.exists(chat_history_file):
         with open(chat_history_file, 'r+') as file:
-            chat_history = json.load(file)
+            try:
+                chat_history = json.load(file)
+            except json.JSONDecodeError:
+                chat_history = []
             chat_history.append(chat_entry)
             file.seek(0)
             json.dump(chat_history, file, indent=4)
@@ -189,8 +192,7 @@ def load_chat_history(chat_history_file=CHAT_HISTORY_FILE):
             try:
                 chat_history = json.load(file)
             except json.JSONDecodeError:
-                st.error("Erro ao ler o arquivo de histórico de chat. O arquivo pode estar corrompido.")
-                return []
+                chat_history = []
         return chat_history
     return []
 
@@ -201,7 +203,10 @@ def clear_chat_history(chat_history_file=CHAT_HISTORY_FILE):
 def load_api_usage():
     if os.path.exists(API_USAGE_FILE):
         with open(API_USAGE_FILE, 'r') as file:
-            api_usage = json.load(file)
+            try:
+                api_usage = json.load(file)
+            except json.JSONDecodeError:
+                api_usage = []
         return api_usage
     return []
 
@@ -451,7 +456,10 @@ def save_expert(expert_title: str, expert_description: str):
     }
     if os.path.exists(FILEPATH):
         with open(FILEPATH, 'r+') as file:
-            agents = json.load(file)
+            try:
+                agents = json.load(file)
+            except json.JSONDecodeError:
+                agents = []
             agents.append(new_expert)
             file.seek(0)
             json.dump(agents, file, indent=4)
@@ -637,7 +645,6 @@ def referencias_para_historico(df_referencias, chat_history_file=CHAT_HISTORY_FI
                     try:
                         chat_history = json.load(file)
                     except json.JSONDecodeError:
-                        st.error("Erro ao ler o arquivo de histórico de chat. O arquivo pode estar corrompido.")
                         chat_history = []
                     chat_history.append(chat_entry)
                     file.seek(0)
@@ -646,6 +653,5 @@ def referencias_para_historico(df_referencias, chat_history_file=CHAT_HISTORY_FI
                 with open(chat_history_file, 'w') as file:
                     json.dump([chat_entry], file, indent=4)
 
-# Carrega as referências do CSV e as transforma em histórico de chat
 df_referencias = carregar_referencias()
 referencias_para_historico(df_referencias)
