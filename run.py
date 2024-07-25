@@ -199,6 +199,20 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
         with open(API_USAGE_FILE, 'w') as file:
             json.dump([entry], file, indent=4)
 
+def handle_rate_limit(error_message: str, action: str):
+    if 'rate_limit_exceeded' in error_message:
+        wait_time = re.search(r'try again in (\d+\.?\d*)s', error_message)
+        if wait_time:
+            wait_time = float(wait_time.group(1))
+            st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
+            time.sleep(wait_time)
+        else:
+            st.warning("Limite de taxa atingido. Aguardando 80 segundos...")
+            time.sleep(60)
+        API_KEYS[action].append(API_KEYS[action].pop(0))
+    else:
+        raise Exception(error_message)
+
 def save_chat_history(user_input, user_prompt, expert_response, chat_history_file=CHAT_HISTORY_FILE):
     chat_entry = {
         'user_input': user_input,
@@ -294,7 +308,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "system", "content": "Você é一个有用的助手."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -496,6 +510,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"\n---\n"
             f"\ngen_id: [自动生成]\n"
             f"seed: [自动生成]\n"
+            f"seed: [gerado automaticamente]\n"
         )
 
         if not references_context:
@@ -567,7 +582,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         rag_prompt = (
-            f"{expert_title}, 请评估以下回答：{assistant_response}。原始请求：{user_input} 和 {user_prompt}。"
+            f"{expert_title}, 请评估以下回答：{phase_two_response}。原始请求：{user_input} 和 {user_prompt}。"
             f"\n\n聊天记录：{history_context}"
             f"\n\n详细描述提供的回答中的可能改进点，并且必须用葡萄牙语：\n"
             f"\n回答评估和改进说明：\n"
