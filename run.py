@@ -29,19 +29,65 @@ MODEL_MAX_TOKENS = {
     'gemma-7b-it': 8192,
 }
 
+# Definição das chaves de API
 API_KEYS = {
     "fetch": ["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", "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"],
     "refine": ["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", "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"],
     "evaluate": ["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", "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"]
 }
 
-# Funções utilitárias
-def get_api_key(action: str) -> str:
+# Função para obter a próxima chave de API disponível
+def get_next_api_key(action: str) -> str:
     keys = API_KEYS.get(action, [])
     if keys:
-        return keys.pop(0)
+        key = keys.pop(0)
+        keys.append(key)
+        return key
     else:
         raise ValueError(f"No API keys available for action: {action}")
+
+# Função para manipular limites de taxa
+def handle_rate_limit(error_message: str, action: str):
+    wait_time = 80  # Tempo padrão de espera
+    match = re.search(r'(\d+\.?\d*)', error_message)
+    if match:
+        wait_time = float(match.group(1))
+    st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
+    time.sleep(wait_time)
+    # Alterna a chave de API para a próxima disponível
+    new_key = get_next_api_key(action)
+    st.info(f"Usando nova chave de API para {action}: {new_key}")
+
+# Função de exemplo para demonstrar uso da API
+def fetch_data_from_api(action: str):
+    while True:
+        try:
+            api_key = get_next_api_key(action)
+            # Simulação da chamada de API com a chave
+            response = make_api_call(api_key)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                raise Exception(f"Erro de API: {response.status_code}")
+        except Exception as e:
+            handle_rate_limit(str(e), action)
+
+def make_api_call(api_key: str):
+    # Simulação de uma chamada de API que pode retornar um erro de limite de taxa
+    import random
+    if random.choice([True, False]):
+        raise Exception("Limite de taxa atingido. Aguardando 20.31 segundos...")
+    else:
+        class Response:
+            status_code = 200
+            def json(self):
+                return {"data": "fake data"}
+        return Response()
+
+# Exemplo de uso da função
+if st.button("Buscar Dados da API"):
+    data = fetch_data_from_api("fetch")
+    st.write(data)
 
 def load_agent_options() -> list:
     agent_options = ['Escolher um especialista...']
@@ -153,20 +199,6 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
         with open(API_USAGE_FILE, 'w') as file:
             json.dump([entry], file, indent=4)
 
-def handle_rate_limit(error_message: str, action: str):
-    if 'rate_limit_exceeded' in error_message:
-        wait_time = re.search(r'try again in (\d+\.?\d*)s', error_message)
-        if wait_time:
-            wait_time = float(wait_time.group(1))
-            st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
-            time.sleep(wait_time)
-        else:
-            st.warning("Limite de taxa atingido. Aguardando 80 segundos...")
-            time.sleep(60)
-        API_KEYS[action].append(API_KEYS[action].pop(0))
-    else:
-        raise Exception(error_message)
-
 def save_chat_history(user_input, user_prompt, expert_response, chat_history_file=CHAT_HISTORY_FILE):
     chat_entry = {
         'user_input': user_input,
@@ -253,7 +285,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     expert_title = ""
     expert_description = ""
     try:
-        client = Groq(api_key=get_api_key('fetch'))
+        client = Groq(api_key=get_next_api_key('fetch'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
@@ -409,7 +441,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_context: str, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Groq(api_key=get_api_key('refine'))
+        client = Groq(api_key=get_next_api_key('refine'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
@@ -418,7 +450,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "system", "content": "Você é一个有用的助手."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -464,7 +496,6 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"\n---\n"
             f"\ngen_id: [自动生成]\n"
             f"seed: [自动生成]\n"
-            f"seed: [gerado automaticamente]\n"
         )
 
         if not references_context:
@@ -497,7 +528,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Groq(api_key=get_api_key('evaluate'))
+        client = Groq(api_key=get_next_api_key('evaluate'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
@@ -506,7 +537,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "system", "content": "Você é一个有用的助手."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -536,7 +567,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         rag_prompt = (
-            f"{expert_title}, 请评估以下回答：{phase_two_response}。原始请求：{user_input} 和 {user_prompt}。"
+            f"{expert_title}, 请评估以下回答：{assistant_response}。原始请求：{user_input} 和 {user_prompt}。"
             f"\n\n聊天记录：{history_context}"
             f"\n\n详细描述提供的回答中的可能改进点，并且必须用葡萄牙语：\n"
             f"\n回答评估和改进说明：\n"
