@@ -358,7 +358,6 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 references_context += f"Título: {titulo}\nAutor: {autor}\nAno: {ano}\nPáginas: {paginas}\n\n"
 
         phase_two_prompt = (
-            phase_two_prompt = (
                 f"{expert_title}, responda a seguinte solicitação de forma completa, detalhada e obrigatoriamente em português: {user_input} e {user_prompt}."
                 f"\n\nHistórico do chat:{history_context}"
                 f"\n\nReferências:\n{references_context}"
