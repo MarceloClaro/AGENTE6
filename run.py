@@ -175,10 +175,7 @@ def save_chat_history(user_input, user_prompt, expert_response, chat_history_fil
     }
     if os.path.exists(chat_history_file):
         with open(chat_history_file, 'r+') as file:
-            try:
-                chat_history = json.load(file)
-            except json.JSONDecodeError:
-                chat_history = []
+            chat_history = json.load(file)
             chat_history.append(chat_entry)
             file.seek(0)
             json.dump(chat_history, file, indent=4)
@@ -189,10 +186,7 @@ def save_chat_history(user_input, user_prompt, expert_response, chat_history_fil
 def load_chat_history(chat_history_file=CHAT_HISTORY_FILE):
     if os.path.exists(chat_history_file):
         with open(chat_history_file, 'r') as file:
-            try:
-                chat_history = json.load(file)
-            except json.JSONDecodeError:
-                chat_history = []
+            chat_history = json.load(file)
         return chat_history
     return []
 
@@ -203,10 +197,7 @@ def clear_chat_history(chat_history_file=CHAT_HISTORY_FILE):
 def load_api_usage():
     if os.path.exists(API_USAGE_FILE):
         with open(API_USAGE_FILE, 'r') as file:
-            try:
-                api_usage = json.load(file)
-            except json.JSONDecodeError:
-                api_usage = []
+            api_usage = json.load(file)
         return api_usage
     return []
 
@@ -456,10 +447,7 @@ def save_expert(expert_title: str, expert_description: str):
     }
     if os.path.exists(FILEPATH):
         with open(FILEPATH, 'r+') as file:
-            try:
-                agents = json.load(file)
-            except json.JSONDecodeError:
-                agents = []
+            agents = json.load(file)
             agents.append(new_expert)
             file.seek(0)
             json.dump(agents, file, indent=4)
@@ -642,10 +630,7 @@ def referencias_para_historico(df_referencias, chat_history_file=CHAT_HISTORY_FI
             
             if os.path.exists(chat_history_file):
                 with open(chat_history_file, 'r+') as file:
-                    try:
-                        chat_history = json.load(file)
-                    except json.JSONDecodeError:
-                        chat_history = []
+                    chat_history = json.load(file)
                     chat_history.append(chat_entry)
                     file.seek(0)
                     json.dump(chat_history, file, indent=4)
