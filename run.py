@@ -602,7 +602,7 @@ st.markdown("<h1 style='text-align: center;'>Consultor de PDFs</h1>", unsafe_all
 st.markdown("<h2 style='text-align: center;'>Utilize nossa plataforma para consultas detalhadas em PDFs.</h2>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
-memory_selection = st.selectbox("Selecione a quantidade de interações para lembrar:", options=[5, 10, 15, 25, 50, 100])
+memory_selection = st.selectbox("Selecione a quantidade de interações para lembrar:", options=[5, 10, 15, 25, 50, 100, 150, 300, 450])
 
 st.write("Digite sua solicitação para que ela seja respondida pelo especialista ideal.")
 col1, col2 = st.columns(2)
