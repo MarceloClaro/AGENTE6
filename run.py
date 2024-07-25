@@ -31,9 +31,9 @@ MODEL_MAX_TOKENS = {
 
 # Definição das chaves de API
 API_KEYS = {
-    "fetch": ["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", "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"],
-    "refine": ["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", "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"],
-    "evaluate": ["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", "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"]
+    "fetch": ["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", "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"],
+    "refine": ["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", "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"],
+    "evaluate": ["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", "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"]
 }
 
 # Variáveis para manter o estado das chaves de API
