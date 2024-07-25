@@ -58,7 +58,7 @@ def get_next_api_key(action: str) -> str:
 # Função para manipular limites de taxa
 def handle_rate_limit(error_message: str, action: str):
     wait_time = 80  # Tempo padrão de espera
-    match = re.search(r'(\d+\.?\d*)', error_message)
+    match = re.search(r'Aguardando (\d+\.?\d*) segundos', error_message)
     if match:
         wait_time = float(match.group(1))
     st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
@@ -147,7 +147,7 @@ def salvar_como_json(dados, caminho_saida):
         json.dump(dados, file, ensure_ascii=False, indent=4)
 
 def processar_e_salvar(texto_paginas, secao_inicial, caminho_pasta_base, nome_arquivo):
-    secoes = identificar_secoes(" ".join([entrada['text'] for entrada in texto_paginas]), secao_inicial)
+    secoes = identificar_secoes(" ".join([entrada['text'] for entrada em texto_paginas]), secao_inicial)
     caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}.json")
     salvar_como_json(secoes, caminho_saida)
 
@@ -207,17 +207,6 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
     else:
         with open(API_USAGE_FILE, 'w') as file:
             json.dump([entry], file, indent=4)
-
-def handle_rate_limit(error_message: str, action: str):
-    wait_time = 80  # Tempo padrão de espera
-    match = re.search(r'(\d+\.?\d*)', error_message)
-    if match:
-        wait_time = float(match.group(1))
-    st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
-    time.sleep(wait_time)
-    # Alterna a chave de API para a próxima disponível
-    new_key = get_next_api_key(action)
-    st.info(f"Usando nova chave de API para {action}: {new_key}")
 
 def save_chat_history(user_input, user_prompt, expert_response, chat_history_file=CHAT_HISTORY_FILE):
     chat_entry = {
@@ -314,7 +303,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "system", "content": "Você é一个 assistente útil."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -588,7 +577,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         rag_prompt = (
-            f"{expert_title}, 请评估以下回答：{phase_two_response}。原始请求：{user_input} 和 {user_prompt}。"
+            f"{expert_title}, 请评估以下回答：{assistant_response}。原始请求：{user_input} 和 {user_prompt}。"
             f"\n\n聊天记录：{history_context}"
             f"\n\n详细描述提供的回答中的可能改进点，并且必须用葡萄牙语：\n"
             f"\n回答评估和改进说明：\n"
