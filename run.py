@@ -29,65 +29,19 @@ MODEL_MAX_TOKENS = {
     'gemma-7b-it': 8192,
 }
 
-# Definição das chaves de API
 API_KEYS = {
-    "fetch": ["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", "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"],
+    "fetch": ["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", "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"],
     "refine": ["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", "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"],
-    "evaluate": ["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", "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"]
+    "evaluate": ["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", "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"]
 }
 
-# Função para obter a próxima chave de API disponível
-def get_next_api_key(action: str) -> str:
+# Funções utilitárias
+def get_api_key(action: str) -> str:
     keys = API_KEYS.get(action, [])
     if keys:
-        key = keys.pop(0)
-        keys.append(key)
-        return key
+        return keys.pop(0)
     else:
         raise ValueError(f"No API keys available for action: {action}")
-
-# Função para manipular limites de taxa
-def handle_rate_limit(error_message: str, action: str):
-    wait_time = 80  # Tempo padrão de espera
-    match = re.search(r'(\d+\.?\d*)', error_message)
-    if match:
-        wait_time = float(match.group(1))
-    st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
-    time.sleep(wait_time)
-    # Alterna a chave de API para a próxima disponível
-    new_key = get_next_api_key(action)
-    st.info(f"Usando nova chave de API para {action}: {new_key}")
-
-# Função de exemplo para demonstrar uso da API
-def fetch_data_from_api(action: str):
-    while True:
-        try:
-            api_key = get_next_api_key(action)
-            # Simulação da chamada de API com a chave
-            response = make_api_call(api_key)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                raise Exception(f"Erro de API: {response.status_code}")
-        except Exception as e:
-            handle_rate_limit(str(e), action)
-
-def make_api_call(api_key: str):
-    # Simulação de uma chamada de API que pode retornar um erro de limite de taxa
-    import random
-    if random.choice([True, False]):
-        raise Exception("Limite de taxa atingido. Aguardando 20.31 segundos...")
-    else:
-        class Response:
-            status_code = 200
-            def json(self):
-                return {"data": "fake data"}
-        return Response()
-
-# Exemplo de uso da função
-if st.button("Buscar Dados da API"):
-    data = fetch_data_from_api("fetch")
-    st.write(data)
 
 def load_agent_options() -> list:
     agent_options = ['Escolher um especialista...']
@@ -199,6 +153,20 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
         with open(API_USAGE_FILE, 'w') as file:
             json.dump([entry], file, indent=4)
 
+def handle_rate_limit(error_message: str, action: str):
+    if 'rate_limit_exceeded' in error_message:
+        wait_time = re.search(r'try again in (\d+\.?\d*)s', error_message)
+        if wait_time:
+            wait_time = float(wait_time.group(1))
+            st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
+            time.sleep(wait_time)
+        else:
+            st.warning("Limite de taxa atingido. Aguardando 60 segundos...")
+            time.sleep(60)
+        API_KEYS[action].append(API_KEYS[action].pop(0))
+    else:
+        raise Exception(error_message)
+
 def save_chat_history(user_input, user_prompt, expert_response, chat_history_file=CHAT_HISTORY_FILE):
     chat_entry = {
         'user_input': user_input,
@@ -285,7 +253,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
     expert_title = ""
     expert_description = ""
     try:
-        client = Groq(api_key=get_next_api_key('fetch'))
+        client = Groq(api_key=get_api_key('fetch'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
@@ -315,46 +283,13 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                         st.error(f"Ocorreu um erro: Error code: 503 - {e}")
                         return ""
                     handle_rate_limit(str(e), 'fetch')
-                    backoff_time = min(backoff_time * 2, 84)
+                    backoff_time = min(backoff_time * 2, 64)
                     st.warning(f"Limite de taxa atingido. Aguardando {backoff_time} segundos...")
                     time.sleep(backoff_time)
 
         if agent_selection == "Escolher um especialista...":
             phase_one_prompt = (
-                f"描述理想的专家，以回答以下请求：{user_input} 和 {user_prompt}。"
-                f"\n\n理想专家描述说明：\n"
-                f"请提供一个完整详细的理想专家描述，该专家可以回答上述请求。请确保涵盖所有相关资质，包括知识、技能、经验和其他使该专家适合回答请求的重要特征。\n"
-                f"\n描述标准：\n"
-                f"1. 学术背景：指定必要的学术背景，包括学位、课程和相关专业。\n"
-                f"2. 职业经验：详细说明与请求相关的职业经验。包括工作年限、担任职位和重大成就。\n"
-                f"3. 技术技能：描述回答请求所需的技术技能和具体知识。\n"
-                f"4. 人际交往技能：包括人际交往技能和有助于有效沟通和解决请求的个人特质。\n"
-                f"5. 认证和培训：列出任何相关的认证和培训，以提高专家的资格。\n"
-                f"6. 以前的工作示例：如果可能，提供以前的工作示例或成功案例，证明专家有能力处理类似的请求。\n"
-                f"\n结构示例：\n"
-                f"1. 学术背景\n"
-                f"- [相关领域] 的学士学位\n"
-                f"- [特定领域] 的硕士/博士学位\n"
-                f"2. 职业经验\n"
-                f"- [相关领域] 的 [数量] 年工作经验\n"
-                f"- 先前职位和成就\n"
-                f"3. 技术技能\n"
-                f"- [具体技能/技术] 的知识\n"
-                f"- [工具/软件] 的熟练程度\n"
-                f"4. 人际交往技能\n"
-                f"- 出色的沟通技巧\n"
-                f"- 团队合作能力\n"
-                f"5. 认证和培训\n"
-                f"- [相关领域] 的认证\n"
-                f"- [特定技能] 的培训\n"
-                f"6. 以前的工作示例\n"
-                f"- 项目 X：描述和结果\n"
-                f"- 成功案例 Y：描述和影响\n"
-                f"\n请使用此格式确保专家描述全面、信息丰富且结构良好。在发送前，请务必审查和编辑描述以确保清晰和准确。\n"
-                f"\n---\n"
-                f"\ngen_id: [自动生成]\n"
-                f"seed: [自动生成]\n"
-                f"seed: [gerado自动] 생\n"
+                f"Descreva o especialista ideal para responder a seguinte solicitação: {user_input} e {user_prompt}."
             )
             phase_one_response = get_completion(phase_one_prompt)
             first_period_index = phase_one_response.find(".")
@@ -391,45 +326,9 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 references_context += f"Título: {titulo}\nAutor: {autor}\nAno: {ano}\nPáginas: {paginas}\n\n"
 
         phase_two_prompt = (
-                f"{expert_title}, 请完整、详细并且必须用葡萄牙语回答以下请求：{user_input} 和 {user_prompt}。"
-                f"\n\n聊天记录：{history_context}"
-                f"\n\n参考资料：\n{references_context}"
-                f"\n\n详细回答说明：\n"
-                f"请完整、详细并且必须用葡萄牙语回答以下请求。请确保涉及所有相关方面并提供清晰准确的信息。使用示例、数据和额外解释来丰富回答。结构化回答，使其逻辑清晰、易于理解。\n"
-                f"请求：\n"
-                f"{user_input}\n"
-                f"{user_prompt}\n"
-                f"\n回答标准：\n"
-                f"1. 引言：概述主题，并说明请求的背景。\n"
-                f"2. 详细说明：详细解释请求的每个相关方面。使用小标题来组织信息，方便阅读。\n"
-                f"3. 示例和数据：包括实际示例、案例研究、统计数据或相关数据来说明所提到的要点。\n"
-                f"4. 批判性分析：对提供的数据和信息进行批判性分析，突出其意义、好处和可能的挑战。\n"
-                f"5. 结论：总结回答的主要要点，并提出明确、客观的结论。\n"
-                f"6. 参考资料：如果适用，请引用在回答中使用的来源和参考文献。\n"
-                f"\n结构示例：\n"
-                f"1. 引言\n"
-                f"- 主题背景\n"
-                f"- 主题重要性\n"
-                f"2. 相关方面\n"
-                f"- 小标题 1\n"
-                f"  - 小标题 1 的详细说明\n"
-                f"  - 示例和数据\n"
-                f"- 小标题 2\n"
-                f"  - 小标题 2 的详细说明\n"
-                f"  - 示例和数据\n"
-                f"3. 批判性分析\n"
-                f"- 提供数据的讨论\n"
-                f"- 意义和挑战\n"
-                f"4. 结论\n"
-                f"- 主要要点总结\n"
-                f"- 明确结论\n"
-                f"5. 参考资料\n"
-                f"- 来源和参考文献列表\n"
-                f"\n请使用此格式确保回答全面、信息丰富且结构良好。在发送前，请务必审查和编辑回答以确保清晰和准确。\n"
-                f"\n---\n"
-                f"\ngen_id: [自动生成]\n"
-                f"seed: [自动生成]\n"
-                f"seed: [gerado automaticamente]\n"
+            f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
+            f"\n\nHistórico do chat:{history_context}"
+            f"\n\nReferências:\n{references_context}"
         )
         phase_two_response = get_completion(phase_two_prompt)
 
@@ -441,7 +340,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
 def refine_response(expert_title: str, phase_two_response: str, user_input: str, user_prompt: str, model_name: str, temperature: float, references_context: str, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Groq(api_key=get_next_api_key('refine'))
+        client = Groq(api_key=get_api_key('refine'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
@@ -480,43 +379,14 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         refine_prompt = (
-            f"{expert_title}, 请完善以下回答：{phase_two_response}。原始请求：{user_input} 和 {user_prompt}。"
-            f"\n\n聊天记录：{history_context}"
-            f"\n\n参考资料：\n{references_context}"
-            f"\n\n回答优化说明：\n"
-            f"请优化提供的回答，确保其更加完整和详细。请确保涉及所有相关方面，并提供清晰准确的信息。使用更多的示例、数据和补充说明进一步丰富回答。将回答结构化，使其逻辑清晰，易于理解。\n"
-            f"\n优化标准：\n"
-            f"1. 引言：确保引言概述主题，并说明请求的背景。\n"
-            f"2. 详细说明：核查并扩展请求的每个相关方面，使用小标题来组织信息并便于阅读。\n"
-            f"3. 示例和数据：增加更多实际示例、案例研究、统计数据或相关数据，以说明所提到的要点。\n"
-            f"4. 批判性分析：深入分析提供的数据和信息，突出其意义、好处和可能的挑战。\n"
-            f"5. 结论：审查并强化回答的主要要点，提出明确、客观的结论。\n"
-            f"6. 参考资料：增加任何可能用来撰写回答的额外来源和参考文献。\n"
-            f"\n请使用此格式确保优化后的回答更加全面、信息丰富且结构良好。在发送前，请务必审查和编辑回答以确保清晰和准确。\n"
-            f"\n---\n"
-            f"\ngen_id: [自动生成]\n"
-            f"seed: [自动生成]\n"
+            f"{expert_title}, refine a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
+            f"\n\nHistórico do chat:{history_context}"
+            f"\n\nReferências:\n{references_context}"
         )
 
         if not references_context:
             refine_prompt += (
-                f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada, precisa e obrigatoriamente em português:, mesmo sem o uso de fontes externas."
-                f"{expert_title}, 请完善以下回答：{phase_two_response}。原始请求：{user_input} 和 {user_prompt}。"
-                f"\n\n聊天记录：{history_context}"
-                f"\n\n参考资料：\n{references_context}"
-                f"\n\n回答优化说明：\n"
-                f"请优化提供的回答，确保其更加完整和详细。请确保涉及所有相关方面，并提供清晰准确的信息。使用更多的示例、数据和补充说明进一步丰富回答。将回答结构化，使其逻辑清晰，易于理解。\n"
-                f"\n优化标准：\n"
-                f"1. 引言：确保引言概述主题，并说明请求的背景。\n"
-                f"2. 详细说明：核查并扩展请求的每个相关方面，使用小标题来组织信息并便于阅读。\n"
-                f"3. 示例和数据：增加更多实际示例、案例研究、统计数据或相关数据，以说明所提到的要点。\n"
-                f"4. 批判性分析：深入分析提供的数据和信息，突出其意义、好处和可能的挑战。\n"
-                f"5. 结论：审查并强化回答的主要要点，提出明确、客观的结论。\n"
-                f"6. 参考资料：增加任何可能用来撰写回答的额外来源和参考文献。\n"
-                f"\n请使用此格式确保优化后的回答更加全面、信息丰富且结构良好。在发送前，请务必审查和编辑回答以确保清晰和准确。\n"
-                f"\n---\n"
-                f"\ngen_id: [自动生成]\n"
-                f"seed: [自动生成]\n"
+                f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
             )
 
         refined_response = get_completion(refine_prompt)
@@ -528,7 +398,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
 
 def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
     try:
-        client = Groq(api_key=get_next_api_key('evaluate'))
+        client = Groq(api_key=get_api_key('evaluate'))
 
         def get_completion(prompt: str) -> str:
             start_time = time.time()
@@ -537,7 +407,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é个assistentいいません。"},
+                            {"role": "system", "content": "Você é um assistente útil."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -567,23 +437,9 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         rag_prompt = (
-            f"{expert_title}, 请评估以下回答：{phase_two_response}。原始请求：{user_input} 和 {user_prompt}。"
-            f"\n\n聊天记录：{history_context}"
-            f"\n\n详细描述提供的回答中的可能改进点，并且必须用葡萄牙语：\n"
-            f"\n回答评估和改进说明：\n"
-            f"请使用以下分析和方法评估提供的回答：\n"
-            f"1. SWOT 分析：识别回答中的优势、劣势、机会和威胁。\n"
-            f"2. Q-统计分析：评估回答中所提供信息的统计质量。\n"
-            f"3. Q-指数分析：检查提供数据的相关性和指数适用性。\n"
-            f"4. PESTER 分析：考虑回答中涉及的政治、经济、社会、技术、生态和监管因素。\n"
-            f"5. 连贯性：评估回答的连贯性，检查文本部分之间的流畅性和连接性。\n"
-            f"6. 逻辑性：检查回答的逻辑一致性，确保信息结构合理，整体连贯。\n"
-            f"7. 流畅性：分析文本的流畅性，确保阅读过程轻松愉快。\n"
-            f"8. 差距分析：识别回答中可以进一步发展或澄清的差距或领域。\n"
-            f"\n根据这些分析提供详细的改进建议，确保最终回答全面、准确且结构良好。\n"
-            f"\n---\n"
-            f"\ngen_id: [自动生成]\n"
-            f"seed: [自动生成]\n"
+            f"{expert_title}, por favor, avalie a seguinte resposta: {assistant_response}. Solicitação original: {user_input} e {user_prompt}."
+            f"\n\nHistórico do chat:{history_context}"
+            f"\n\nDescreva detalhadamente as melhorias possíveis na resposta fornecida."
         )
 
         rag_response = get_completion(rag_prompt)
@@ -633,7 +489,7 @@ st.markdown("<h1 style='text-align: center;'>Consultor de PDFs</h1>", unsafe_all
 st.markdown("<h2 style='text-align: center;'>Utilize nossa plataforma para consultas detalhadas em PDFs.</h2>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
-memory_selection = st.selectbox("Selecione a quantidade de interações para lembrar:", options=[5, 10, 15, 25, 50, 100, 150, 300, 450])
+memory_selection = st.selectbox("Selecione a quantidade de interações para lembrar:", options=[5, 10, 15, 25, 50, 100])
 
 st.write("Digite sua solicitação para que ela seja respondida pelo especialista ideal.")
 col1, col2 = st.columns(2)
