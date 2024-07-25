@@ -6,10 +6,10 @@ import pandas as pd
 import streamlit as st
 from typing import Tuple
 import time
-import hashlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 from groq import Groq
+import hashlib
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -419,7 +419,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "system", "content": "Você是一个有用的助手。"},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -465,7 +465,6 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"\n---\n"
             f"\ngen_id: [自动生成]\n"
             f"seed: [自动生成]\n"
-            f"seed: [gerado automaticamente]\n"
         )
 
         if not references_context:
@@ -537,7 +536,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         rag_prompt = (
-            f"{expert_title}, 请评估以下回答：{assistant_response}。原始请求：{user_input} 和 {user_prompt}。"
+            f"{expert_title}, 请评估以下回答：{phase_two_response}。原始请求：{user_input} 和 {user_prompt}。"
             f"\n\n聊天记录：{history_context}"
             f"\n\n详细描述提供的回答中的可能改进点，并且必须用葡萄牙语：\n"
             f"\n回答评估和改进说明：\n"
@@ -581,26 +580,19 @@ def save_expert(expert_title: str, expert_description: str):
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
-# Função para calcular o hash de uma consulta
+@st.cache_data
 def hash_query(query: str) -> str:
-    return hashlib.md5(query.encode()).hexdigest()
+    return hashlib.sha256(query.encode()).hexdigest()
 
-# Implementação de cache
-@st.cache
-def get_cached_response(query: str, model_name: str, temperature: float):
-    # Simulação de uma chamada de API demorada
-    time.sleep(5)
-    return f"Response for query: {query} with model: {model_name} at temperature: {temperature}"
+@st.cache_data
+def get_cached_response(query_hash: str, model_name: str, temperature: float) -> Tuple[str, str]:
+    # Implement the logic to fetch and cache the response
+    # Here we return a tuple of strings as a placeholder
+    return "cached_expert_description", "cached_response"
 
-# Função para validação de entradas
-def validar_entrada(usuario_entrada: str) -> bool:
-    if not usuario_entrada.strip():
-        st.error("A entrada não pode estar vazia.")
-        return False
-    if len(usuario_entrada) < 10:
-        st.warning("A entrada é muito curta. Por favor, forneça mais detalhes.")
-        return False
-    return True
+def validar_entrada(entrada: str) -> bool:
+    # Validar se a entrada do usuário é válida
+    return bool(entrada and entrada.strip())
 
 # Interface Principal com Streamlit
 
@@ -650,6 +642,15 @@ with col2:
     chat_history = load_chat_history()[-memory_selection:]
 
     if fetch_clicked:
+        if validar_entrada(user_input):
+            query_hash = hash_query(user_input + user_prompt + model_name)
+            st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = get_cached_response(query_hash, model_name, temperature)
+            st.session_state.resposta_original = st.session_state.resposta_assistente
+            st.session_state.resposta_refinada = ""
+            save_chat_history(user_input, user_prompt, st.session_state.resposta_assistente)
+        else:
+            st.warning("Por favor, insira uma solicitação válida.")
+
         if references_file:
             df = upload_and_extract_references(references_file)
             if isinstance(df, pd.DataFrame):
@@ -657,13 +658,6 @@ with col2:
                 st.dataframe(df)
                 st.session_state.references_path = "references.csv"
                 st.session_state.references_df = df
-
-        if validar_entrada(user_input):
-            query_hash = hash_query(user_input + user_prompt + model_name + str(temperature))
-            st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = get_cached_response(query_hash, model_name, temperature)
-            st.session_state.resposta_original = st.session_state.resposta_assistente
-            st.session_state.resposta_refinada = ""
-            save_chat_history(user_input, user_prompt, st.session_state.resposta_assistente)
 
     if refine_clicked:
         if st.session_state.resposta_assistente:
