@@ -199,20 +199,6 @@ def log_api_usage(action: str, interaction_number: int, tokens_used: int, time_t
         with open(API_USAGE_FILE, 'w') as file:
             json.dump([entry], file, indent=4)
 
-def handle_rate_limit(error_message: str, action: str):
-    if 'rate_limit_exceeded' in error_message:
-        wait_time = re.search(r'try again in (\d+\.?\d*)s', error_message)
-        if wait_time:
-            wait_time = float(wait_time.group(1))
-            st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
-            time.sleep(wait_time)
-        else:
-            st.warning("Limite de taxa atingido. Aguardando 80 segundos...")
-            time.sleep(60)
-        API_KEYS[action].append(API_KEYS[action].pop(0))
-    else:
-        raise Exception(error_message)
-
 def save_chat_history(user_input, user_prompt, expert_response, chat_history_file=CHAT_HISTORY_FILE):
     chat_entry = {
         'user_input': user_input,
@@ -308,7 +294,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é一个有用的助手."},
+                            {"role": "system", "content": "Você é um assistente útil."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -368,7 +354,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 f"\n---\n"
                 f"\ngen_id: [自动生成]\n"
                 f"seed: [自动生成]\n"
-                f"seed: [gerado automaticamente]\n"
+                f"seed: [gerado自动] 생\n"
             )
             phase_one_response = get_completion(phase_one_prompt)
             first_period_index = phase_one_response.find(".")
@@ -464,7 +450,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é一个有用的助手."},
+                            {"role": "system", "content": "Você é um assistente útil."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -510,7 +496,6 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"\n---\n"
             f"\ngen_id: [自动生成]\n"
             f"seed: [自动生成]\n"
-            f"seed: [gerado automaticamente]\n"
         )
 
         if not references_context:
@@ -552,7 +537,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é一个有用的助手."},
+                            {"role": "system", "content": "Você é个assistentいいません。"},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
