@@ -147,7 +147,7 @@ def salvar_como_json(dados, caminho_saida):
         json.dump(dados, file, ensure_ascii=False, indent=4)
 
 def processar_e_salvar(texto_paginas, secao_inicial, caminho_pasta_base, nome_arquivo):
-    secoes = identificar_secoes(" ".join([entrada['text'] for entrada em texto_paginas]), secao_inicial)
+    secoes = identificar_secoes(" ".join([entrada['text'] for entrada in texto_paginas]), secao_inicial)
     caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}.json")
     salvar_como_json(secoes, caminho_saida)
 
@@ -303,7 +303,7 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é一个 assistente útil."},
+                            {"role": "system", "content": "Você é um assistente útil."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -459,7 +459,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é一个 assistente útil."},
+                            {"role": "system", "content": "Você é um assistente útil."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -577,7 +577,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         rag_prompt = (
-            f"{expert_title}, 请评估以下回答：{assistant_response}。原始请求：{user_input} 和 {user_prompt}。"
+            f"{expert_title}, 请评估以下回答：{phase_two_response}。原始请求：{user_input} 和 {user_prompt}。"
             f"\n\n聊天记录：{history_context}"
             f"\n\n详细描述提供的回答中的可能改进点，并且必须用葡萄牙语：\n"
             f"\n回答评估和改进说明：\n"
