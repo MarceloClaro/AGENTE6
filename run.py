@@ -9,7 +9,6 @@ import time
 import matplotlib.pyplot as plt
 import seaborn as sns
 from groq import Groq
-import hashlib
 
 # Configurações da página do Streamlit
 st.set_page_config(
@@ -31,9 +30,9 @@ MODEL_MAX_TOKENS = {
 }
 
 API_KEYS = {
-    "fetch": ["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", "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"],
+    "fetch": ["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", "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"],
     "refine": ["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", "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"],
-    "evaluate": ["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", "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"]
+    "evaluate": ["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", "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"]
 }
 
 # Funções utilitárias
@@ -419,7 +418,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você是一个有用的助手。"},
+                            {"role": "system", "content": "Você é um assistente útil."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -465,6 +464,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"\n---\n"
             f"\ngen_id: [自动生成]\n"
             f"seed: [自动生成]\n"
+            f"seed: [gerado automaticamente]\n"
         )
 
         if not references_context:
@@ -506,7 +506,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você是一个有用的助手。"},
+                            {"role": "system", "content": "Você é um assistente útil."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -580,20 +580,6 @@ def save_expert(expert_title: str, expert_description: str):
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
-@st.cache_data
-def hash_query(query: str) -> str:
-    return hashlib.sha256(query.encode()).hexdigest()
-
-@st.cache_data
-def get_cached_response(query_hash: str, model_name: str, temperature: float) -> Tuple[str, str]:
-    # Implement the logic to fetch and cache the response
-    # Here we return a tuple of strings as a placeholder
-    return "cached_expert_description", "cached_response"
-
-def validar_entrada(entrada: str) -> bool:
-    # Validar se a entrada do usuário é válida
-    return bool(entrada and entrada.strip())
-
 # Interface Principal com Streamlit
 
 if 'resposta_assistente' not in st.session_state:
@@ -642,15 +628,6 @@ with col2:
     chat_history = load_chat_history()[-memory_selection:]
 
     if fetch_clicked:
-        if validar_entrada(user_input):
-            query_hash = hash_query(user_input + user_prompt + model_name)
-            st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = get_cached_response(query_hash, model_name, temperature)
-            st.session_state.resposta_original = st.session_state.resposta_assistente
-            st.session_state.resposta_refinada = ""
-            save_chat_history(user_input, user_prompt, st.session_state.resposta_assistente)
-        else:
-            st.warning("Por favor, insira uma solicitação válida.")
-
         if references_file:
             df = upload_and_extract_references(references_file)
             if isinstance(df, pd.DataFrame):
@@ -658,6 +635,11 @@ with col2:
                 st.dataframe(df)
                 st.session_state.references_path = "references.csv"
                 st.session_state.references_df = df
+
+        st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number, st.session_state.get('references_df'))
+        st.session_state.resposta_original = st.session_state.resposta_assistente
+        st.session_state.resposta_refinada = ""
+        save_chat_history(user_input, user_prompt, st.session_state.resposta_assistente)
 
     if refine_clicked:
         if st.session_state.resposta_assistente:
