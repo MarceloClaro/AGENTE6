@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 from typing import Tuple
 import time
+import hashlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 from groq import Groq
@@ -30,9 +31,9 @@ MODEL_MAX_TOKENS = {
 }
 
 API_KEYS = {
-    "fetch": ["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", "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"],
+    "fetch": ["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", "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"],
     "refine": ["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", "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"],
-    "evaluate": ["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", "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"]
+    "evaluate": ["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", "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"]
 }
 
 # Funções utilitárias
@@ -506,7 +507,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "system", "content": "Você是一个有用的助手。"},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -536,7 +537,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         rag_prompt = (
-            f"{expert_title}, 请评估以下回答：{phase_two_response}。原始请求：{user_input} 和 {user_prompt}。"
+            f"{expert_title}, 请评估以下回答：{assistant_response}。原始请求：{user_input} 和 {user_prompt}。"
             f"\n\n聊天记录：{history_context}"
             f"\n\n详细描述提供的回答中的可能改进点，并且必须用葡萄牙语：\n"
             f"\n回答评估和改进说明：\n"
@@ -579,6 +580,27 @@ def save_expert(expert_title: str, expert_description: str):
     else:
         with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
+
+# Função para calcular o hash de uma consulta
+def hash_query(query: str) -> str:
+    return hashlib.md5(query.encode()).hexdigest()
+
+# Implementação de cache
+@st.cache
+def get_cached_response(query: str, model_name: str, temperature: float):
+    # Simulação de uma chamada de API demorada
+    time.sleep(5)
+    return f"Response for query: {query} with model: {model_name} at temperature: {temperature}"
+
+# Função para validação de entradas
+def validar_entrada(usuario_entrada: str) -> bool:
+    if not usuario_entrada.strip():
+        st.error("A entrada não pode estar vazia.")
+        return False
+    if len(usuario_entrada) < 10:
+        st.warning("A entrada é muito curta. Por favor, forneça mais detalhes.")
+        return False
+    return True
 
 # Interface Principal com Streamlit
 
@@ -636,10 +658,12 @@ with col2:
                 st.session_state.references_path = "references.csv"
                 st.session_state.references_df = df
 
-        st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = fetch_assistant_response(user_input, user_prompt, model_name, temperature, agent_selection, chat_history, interaction_number, st.session_state.get('references_df'))
-        st.session_state.resposta_original = st.session_state.resposta_assistente
-        st.session_state.resposta_refinada = ""
-        save_chat_history(user_input, user_prompt, st.session_state.resposta_assistente)
+        if validar_entrada(user_input):
+            query_hash = hash_query(user_input + user_prompt + model_name + str(temperature))
+            st.session_state.descricao_especialista_ideal, st.session_state.resposta_assistente = get_cached_response(query_hash, model_name, temperature)
+            st.session_state.resposta_original = st.session_state.resposta_assistente
+            st.session_state.resposta_refinada = ""
+            save_chat_history(user_input, user_prompt, st.session_state.resposta_assistente)
 
     if refine_clicked:
         if st.session_state.resposta_assistente:
