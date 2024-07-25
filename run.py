@@ -161,7 +161,7 @@ def handle_rate_limit(error_message: str, action: str):
             st.warning(f"Limite de taxa atingido. Aguardando {wait_time} segundos...")
             time.sleep(wait_time)
         else:
-            st.warning("Limite de taxa atingido. Aguardando 60 segundos...")
+            st.warning("Limite de taxa atingido. Aguardando 80 segundos...")
             time.sleep(60)
         API_KEYS[action].append(API_KEYS[action].pop(0))
     else:
@@ -283,13 +283,45 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                         st.error(f"Ocorreu um erro: Error code: 503 - {e}")
                         return ""
                     handle_rate_limit(str(e), 'fetch')
-                    backoff_time = min(backoff_time * 2, 64)
+                    backoff_time = min(backoff_time * 2, 84)
                     st.warning(f"Limite de taxa atingido. Aguardando {backoff_time} segundos...")
                     time.sleep(backoff_time)
 
         if agent_selection == "Escolher um especialista...":
             phase_one_prompt = (
                 f"Descreva o especialista ideal para responder a seguinte solicitação: {user_input} e {user_prompt}."
+                f"\n\nInstruções para Descrição do Especialista Ideal:\n"
+                f"Por favor, forneça uma descrição completa e detalhada do especialista ideal que poderia responder à solicitação mencionada. Certifique-se de abordar todas as qualificações relevantes, incluindo conhecimentos, habilidades, experiências e quaisquer outras características importantes que tornem esse especialista adequado para responder à solicitação.\n"
+                f"\nCritérios para a Descrição:\n"
+                f"1. Formação Acadêmica: Especifique a formação acadêmica necessária, incluindo diplomas, cursos e especializações relevantes.\n"
+                f"2. Experiência Profissional: Detalhe as experiências profissionais que são relevantes para a solicitação. Inclua anos de experiência, cargos ocupados e realizações significativas.\n"
+                f"3. Habilidades Técnicas: Descreva as habilidades técnicas e conhecimentos específicos necessários para responder de maneira adequada à solicitação.\n"
+                f"4. Habilidades Interpessoais: Inclua habilidades interpessoais e características pessoais que contribuam para a eficácia na comunicação e resolução da solicitação.\n"
+                f"5. Certificações e Treinamentos: Liste quaisquer certificações e treinamentos adicionais que sejam relevantes e aumentem a qualificação do especialista.\n"
+                f"6. Exemplos de Trabalho Anterior: Se possível, forneça exemplos de trabalhos anteriores ou casos de sucesso que demonstrem a capacidade do especialista em lidar com solicitações semelhantes.\n"
+                f"\nExemplo de Estrutura:\n"
+                f"1. Formação Acadêmica\n"
+                f"- Diploma de Graduação em [área relevante]\n"
+                f"- Mestrado/Doutorado em [área específica]\n"
+                f"2. Experiência Profissional\n"
+                f"- [Quantidade] anos de experiência em [campo relevante]\n"
+                f"- Cargo(s) anterior(es) e realizações\n"
+                f"3. Habilidades Técnicas\n"
+                f"- Conhecimento em [habilidade/técnica específica]\n"
+                f"- Proficiência em [ferramenta/software]\n"
+                f"4. Habilidades Interpessoais\n"
+                f"- Excelentes habilidades de comunicação\n"
+                f"- Capacidade de trabalhar em equipe\n"
+                f"5. Certificações e Treinamentos\n"
+                f"- Certificação em [área relevante]\n"
+                f"- Treinamento em [competência específica]\n"
+                f"6. Exemplos de Trabalho Anterior\n"
+                f"- Projeto X: Descrição e resultados\n"
+                f"- Caso de sucesso Y: Descrição e impacto\n"
+                f"\nAplique este formato para garantir que a descrição do especialista seja abrangente, informativa e bem-estruturada. Certifique-se de revisar e editar a descrição para clareza e precisão antes de enviá-la.\n"
+                f"\n---\n"
+                f"\ngen_id: [gerado automaticamente]\n"
+                f"seed: [gerado automaticamente]\n"
             )
             phase_one_response = get_completion(phase_one_prompt)
             first_period_index = phase_one_response.find(".")
@@ -326,9 +358,45 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 references_context += f"Título: {titulo}\nAutor: {autor}\nAno: {ano}\nPáginas: {paginas}\n\n"
 
         phase_two_prompt = (
-            f"{expert_title}, responda a seguinte solicitação de forma completa e detalhada: {user_input} e {user_prompt}."
-            f"\n\nHistórico do chat:{history_context}"
-            f"\n\nReferências:\n{references_context}"
+            phase_two_prompt = (
+    f"{expert_title}, responda a seguinte solicitação de forma completa, detalhada e obrigatoriamente em português: {user_input} e {user_prompt}."
+    f"\n\nHistórico do chat:{history_context}"
+    f"\n\nReferências:\n{references_context}"
+    f"\n\nInstruções para Resposta Detalhada:\n"
+    f"Por favor, responda à solicitação abaixo de forma completa, detalhada e obrigatoriamente em português. Certifique-se de abordar todos os aspectos relevantes e fornecer informações claras e precisas. Utilize exemplos, dados e explicações adicionais para enriquecer a resposta. Estruture a resposta de maneira lógica e coerente, facilitando a compreensão do leitor.\n"
+    f"Solicitação:\n"
+    f"{user_input}\n"
+    f"{user_prompt}\n"
+    f"\nCritérios de Resposta:\n"
+    f"1. Introdução: Apresente uma visão geral do tópico, contextualizando a solicitação.\n"
+    f"2. Detalhamento: Explique detalhadamente cada aspecto relevante da solicitação. Utilize subtítulos para organizar as informações e facilitar a leitura.\n"
+    f"3. Exemplos e Dados: Inclua exemplos práticos, estudos de caso, estatísticas ou dados relevantes que ilustrem os pontos abordados.\n"
+    f"4. Análise Crítica: Forneça uma análise crítica dos dados e informações apresentados, destacando implicações, benefícios e possíveis desafios.\n"
+    f"5. Conclusão: Resuma os pontos principais da resposta e apresente uma conclusão clara e objetiva.\n"
+    f"6. Referências: Se aplicável, cite fontes e referências que foram utilizadas para compor a resposta.\n"
+    f"\nExemplo de Estrutura:\n"
+    f"1. Introdução\n"
+    f"- Contextualização do tema\n"
+    f"- Importância do tópico\n"
+    f"2. Aspectos Relevantes\n"
+    f"- Subtítulo 1\n"
+    f"  - Detalhamento do subtítulo 1\n"
+    f"  - Exemplos e dados\n"
+    f"- Subtítulo 2\n"
+    f"  - Detalhamento do subtítulo 2\n"
+    f"  - Exemplos e dados\n"
+    f"3. Análise Crítica\n"
+    f"- Discussão dos dados apresentados\n"
+    f"- Implicações e desafios\n"
+    f"4. Conclusão\n"
+    f"- Resumo dos pontos principais\n"
+    f"- Conclusão objetiva\n"
+    f"5. Referências\n"
+    f"- Listagem de fontes e referências\n"
+    f"\nAplique este formato para garantir que a resposta seja abrangente, informativa e bem-estruturada. Certifique-se de revisar e editar a resposta para clareza e precisão antes de enviá-la.\n"
+    f"\n---\n"
+    f"\ngen_id: [gerado automaticamente]\n"
+    f"seed: [gerado automaticamente]\n"
         )
         phase_two_response = get_completion(phase_two_prompt)
 
@@ -382,11 +450,24 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             f"{expert_title}, refine a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
             f"\n\nHistórico do chat:{history_context}"
             f"\n\nReferências:\n{references_context}"
+            f"\n\nInstruções para Refinamento da Resposta:\n"
+            f"Por favor, refine a resposta fornecida, garantindo que seja ainda mais completa e detalhada. Certifique-se de abordar todos os aspectos relevantes e fornecer informações claras e precisas. Utilize exemplos adicionais, dados e explicações complementares para enriquecer ainda mais a resposta. Estruture a resposta de maneira lógica e coerente, facilitando a compreensão do leitor.\n"
+            f"\nCritérios de Refinamento:\n"
+            f"1. Introdução: Certifique-se de que a introdução apresente uma visão geral do tópico, contextualizando a solicitação.\n"
+            f"2. Detalhamento: Verifique e amplie cada aspecto relevante da solicitação, utilizando subtítulos para organizar as informações e facilitar a leitura.\n"
+            f"3. Exemplos e Dados: Inclua mais exemplos práticos, estudos de caso, estatísticas ou dados relevantes que ilustrem os pontos abordados.\n"
+            f"4. Análise Crítica: Aprofunde a análise crítica dos dados e informações apresentados, destacando implicações, benefícios e possíveis desafios.\n"
+            f"5. Conclusão: Revise e reforce os pontos principais da resposta, apresentando uma conclusão clara e objetiva.\n"
+            f"6. Referências: Adicione quaisquer fontes e referências adicionais que possam ser utilizadas para compor a resposta.\n"
+            f"\nAplique este formato para garantir que a resposta refinada seja ainda mais abrangente, informativa e bem-estruturada. Certifique-se de revisar e editar a resposta refinada para clareza e precisão antes de enviá-la.\n"
+            f"\n---\n"
+            f"\ngen_id: [gerado automaticamente]\n"
+            f"seed: [gerado automaticamente]\n"
         )
 
         if not references_context:
             refine_prompt += (
-                f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada e precisa, mesmo sem o uso de fontes externas."
+                f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada, precisa e obrigatoriamente em português:, mesmo sem o uso de fontes externas."
             )
 
         refined_response = get_completion(refine_prompt)
@@ -437,9 +518,23 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         rag_prompt = (
-            f"{expert_title}, por favor, avalie a seguinte resposta: {assistant_response}. Solicitação original: {user_input} e {user_prompt}."
+            f"{expert_title}, por favor, avalie a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
             f"\n\nHistórico do chat:{history_context}"
-            f"\n\nDescreva detalhadamente as melhorias possíveis na resposta fornecida."
+            f"\n\nDescreva detalhadamente as melhorias possíveis na resposta fornecida e obrigatoriamente em português:\n"
+            f"\nInstruções para Avaliação e Melhoria da Resposta:\n"
+            f"Por favor, avalie a resposta fornecida utilizando as seguintes análises e metodologias:\n"
+            f"1. Análise SWOT: Identifique os pontos fortes, fracos, oportunidades e ameaças na resposta.\n"
+            f"2. Análise Q-Estatística: Avalie a qualidade estatística das informações apresentadas na resposta.\n"
+            f"3. Análise Q-Exponencial: Examine a relevância e a aplicabilidade exponencial dos dados fornecidos.\n"
+            f"4. Análise PESTER: Considere os fatores Políticos, Econômicos, Sociais, Tecnológicos, Ecológicos e Regulatórios presentes na resposta.\n"
+            f"5. Coesão: Avalie a coesão da resposta, verificando a fluidez e a conectividade entre as partes do texto.\n"
+            f"6. Coerência: Verifique a coerência lógica da resposta, garantindo que as informações estejam bem estruturadas e façam sentido em conjunto.\n"
+            f"7. Fluidez: Analise a fluidez do texto, garantindo que a leitura seja fácil e agradável.\n"
+            f"8. Análise de Gaps: Identifique lacunas ou áreas que possam ser melhor desenvolvidas ou esclarecidas na resposta.\n"
+            f"\nForneça sugestões detalhadas para melhorias com base nessas análises, garantindo que a resposta final seja abrangente, precisa e bem-estruturada.\n"
+            f"\n---\n"
+            f"\ngen_id: [gerado automaticamente]\n"
+            f"seed: [gerado automaticamente]\n"
         )
 
         rag_response = get_completion(rag_prompt)
