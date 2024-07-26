@@ -67,37 +67,6 @@ def handle_rate_limit(error_message: str, action: str):
     new_key = get_next_api_key(action)
     st.info(f"Usando nova chave de API para {action}: {new_key}")
 
-# Função de exemplo para demonstrar uso da API
-def fetch_data_from_api(action: str):
-    while True:
-        try:
-            api_key = get_next_api_key(action)
-            # Simulação da chamada de API com a chave
-            response = make_api_call(api_key)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                raise Exception(f"Erro de API: {response.status_code}")
-        except Exception as e:
-            handle_rate_limit(str(e), action)
-'''
-def make_api_call(api_key: str):
-    # Simulação de uma chamada de API que pode retornar um erro de limite de taxa
-    import random
-    if random.choice([True, False]):
-        raise Exception("Limite de taxa atingido. Aguardando 20.31 segundos...")
-    else:
-        class Response:
-            status_code = 200
-            def json(self):
-                return {"data": "fake data"}
-        return Response()
-
-# Exemplo de uso da função
-if st.button("Buscar Dados da API"):
-    data = fetch_data_from_api("fetch")
-    st.write(data)
-'''
 def load_agent_options() -> list:
     agent_options = ['Escolher um especialista...']
     if os.path.exists(FILEPATH):
