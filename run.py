@@ -546,6 +546,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         rag_prompt = (
+            f"\n\nCertifique-se de fornecer uma resposta detalhada, precisa e obrigatoriamente em português:, mesmo sem o uso de fontes externas."
             f"{expert_title}, 请评估以下回答：{assistant_response}。原始请求：{user_input} 和 {user_prompt}。"
             f"\n\n聊天记录：{history_context}"
             f"\n\n详细描述提供的回答中的可能改进点，并且必须用葡萄牙语：\n"
