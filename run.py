@@ -80,7 +80,7 @@ def fetch_data_from_api(action: str):
                 raise Exception(f"Erro de API: {response.status_code}")
         except Exception as e:
             handle_rate_limit(str(e), action)
-
+'''
 def make_api_call(api_key: str):
     # Simulação de uma chamada de API que pode retornar um erro de limite de taxa
     import random
@@ -97,7 +97,7 @@ def make_api_call(api_key: str):
 if st.button("Buscar Dados da API"):
     data = fetch_data_from_api("fetch")
     st.write(data)
-
+'''
 def load_agent_options() -> list:
     agent_options = ['Escolher um especialista...']
     if os.path.exists(FILEPATH):
