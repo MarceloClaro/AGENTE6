@@ -459,7 +459,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "system", "content": "Você é一个 assistente útil."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -536,7 +536,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
         st.error(f"Ocorreu um erro durante o refinamento: {e}")
         return ""
 
-def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: str, expert_description: str, assistant_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
+def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: str, expert_description: str, phase_two_response: str, model_name: str, temperature: float, chat_history: list, interaction_number: int) -> str:
     try:
         client = Groq(api_key=get_next_api_key('evaluate'))
 
