@@ -482,7 +482,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada, precisa e obrigatoriamente em português:, mesmo sem o uso de fontes externas."
                 f"{expert_title}, 请完善以下回答：{phase_two_response}。原始请求：{user_input} 和 {user_prompt}。"
                 f"\n\n聊天记录：{history_context}"
-                f"\n\n参考资料：{references_context}"
+                f"\n\n参考资料：\n{references_context}"
                 f"\n\n回答优化说明：\n"
                 f"请优化提供的回答，确保其更加完整和详细。请确保涉及所有相关方面，并提供清晰准确的信息。使用更多的示例、数据和补充说明进一步丰富回答。将回答结构化，使其逻辑清晰，易于理解。\n"
                 f"\n优化标准：\n"
@@ -587,7 +587,7 @@ def save_expert(expert_title: str, expert_description: str):
             file.seek(0)
             json.dump(agents, file, indent=4)
     else:
-        with open(FILEPATH, 'w') as file):
+        with open(FILEPATH, 'w') as file:
             json.dump([new_expert], file, indent=4)
 
 # Interface Principal com Streamlit
