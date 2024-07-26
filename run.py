@@ -116,7 +116,7 @@ def salvar_como_json(dados, caminho_saida):
         json.dump(dados, file, ensure_ascii=False, indent=4)
 
 def processar_e_salvar(texto_paginas, secao_inicial, caminho_pasta_base, nome_arquivo):
-    secoes = identificar_secoes(" ".join([entrada['text'] for entrada em texto_paginas]), secao_inicial)
+    secoes = identificar_secoes(" ".join([entrada['text'] for entrada in texto_paginas]), secao_inicial)
     caminho_saida = os.path.join(caminho_pasta_base, f"{nome_arquivo}.json")
     salvar_como_json(secoes, caminho_saida)
 
@@ -299,36 +299,40 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
 
         if agent_selection == "Escolher um especialista...":
             phase_one_prompt = (
-                f"Descreva o especialista ideal para responder à seguinte solicitação: {user_input} e {user_prompt}."
-                f"\n\nDescrição do especialista ideal:\n"
-                f"Por favor, forneça uma descrição completa e detalhada do especialista ideal que pode responder à solicitação acima. Certifique-se de cobrir todas as qualificações relevantes, incluindo conhecimento, habilidades, experiência e outras características que tornam esse especialista adequado para responder à solicitação."
-                f"\nCritérios de descrição:\n"
-                f"1. Formação acadêmica: Especificar a formação acadêmica necessária, incluindo graus, cursos e especializações relevantes.\n"
-                f"2. Experiência profissional: Detalhar a experiência profissional relevante para a solicitação. Inclua o tempo de trabalho, cargos ocupados e principais realizações.\n"
-                f"3. Habilidades técnicas: Descrever as habilidades técnicas e o conhecimento específico necessários para responder à solicitação.\n"
-                f"4. Habilidades interpessoais: Incluir habilidades interpessoais e características pessoais que ajudam na comunicação e na resolução eficaz da solicitação.\n"
-                f"5. Certificações e treinamentos: Listar quaisquer certificações e treinamentos relevantes que aumentem a qualificação do especialista.\n"
-                f"6. Exemplos de trabalhos anteriores: Se possível, fornecer exemplos de trabalhos anteriores ou casos de sucesso que demonstrem a capacidade do especialista de lidar com solicitações semelhantes.\n"
-                f"\nExemplo de estrutura:\n"
-                f"1. Formação acadêmica\n"
-                f"- Graduação em [campo relevante]\n"
-                f"- Mestrado/Doutorado em [campo específico]\n"
-                f"2. Experiência profissional\n"
-                f"- [Quantidade] anos de experiência em [campo relevante]\n"
-                f"- Cargos anteriores e realizações\n"
-                f"3. Habilidades técnicas\n"
-                f"- Conhecimento em [habilidades específicas/tecnologias]\n"
-                f"- Proficiência em [ferramentas/softwares]\n"
-                f"4. Habilidades interpessoais\n"
-                f"- Excelentes habilidades de comunicação\n"
-                f"- Capacidade de trabalhar em equipe\n"
-                f"5. Certificações e treinamentos\n"
-                f"- Certificação em [campo relevante]\n"
-                f"- Treinamento em [habilidade específica]\n"
-                f"6. Exemplos de trabalhos anteriores\n"
-                f"- Projeto X: descrição e resultados\n"
-                f"- Caso de sucesso Y: descrição e impacto\n"
-                f"\nUse este formato para garantir que a descrição do especialista seja abrangente, informativa e bem estruturada. Revise e edite a descrição para garantir clareza e precisão antes de enviar."
+                f"描述理想的专家，以回答以下请求：{user_input} 和 {user_prompt}。"
+                f"\n\n理想专家描述说明：\n"
+                f"请提供一个完整详细的理想专家描述，该专家可以回答上述请求。请确保涵盖所有相关资质，包括知识、技能、经验和其他使该专家适合回答请求的重要特征。\n"
+                f"\n描述标准：\n"
+                f"1. 学术背景：指定必要的学术背景，包括学位、课程和相关专业。\n"
+                f"2. 职业经验：详细说明与请求相关的职业经验。包括工作年限、担任职位和重大成就。\n"
+                f"3. 技术技能：描述回答请求所需的技术技能和具体知识。\n"
+                f"4. 人际交往技能：包括人际交往技能和有助于有效沟通和解决请求的个人特质。\n"
+                f"5. 认证和培训：列出任何相关的认证和培训，以提高专家的资格。\n"
+                f"6. 以前的工作示例：如果可能，提供以前的工作示例或成功案例，证明专家有能力处理类似的请求。\n"
+                f"\n结构示例：\n"
+                f"1. 学术背景\n"
+                f"- [相关领域] 的学士学位\n"
+                f"- [特定领域] 的硕士/博士学位\n"
+                f"2. 职业经验\n"
+                f"- [相关领域] 的 [数量] 年工作经验\n"
+                f"- 先前职位和成就\n"
+                f"3. 技术技能\n"
+                f"- [具体技能/技术] 的知识\n"
+                f"- [工具/软件] 的熟练程度\n"
+                f"4. 人际交往技能\n"
+                f"- 出色的沟通技巧\n"
+                f"- 团队合作能力\n"
+                f"5. 认证和培训\n"
+                f"- [相关领域] 的认证\n"
+                f"- [特定技能] 的培训\n"
+                f"6. 以前的工作示例\n"
+                f"- 项目 X：描述和结果\n"
+                f"- 成功案例 Y：描述和影响\n"
+                f"\n请使用此格式确保专家描述全面、信息丰富且结构良好。在发送前，请务必审查和编辑描述以确保清晰和准确。\n"
+                f"\n---\n"
+                f"\ngen_id: [自动生成]\n"
+                f"seed: [自动生成]\n"
+                f"seed: [gerado automaticamente]\n"
             )
             phase_one_response = get_completion(phase_one_prompt)
             first_period_index = phase_one_response.find(".")
@@ -365,19 +369,45 @@ def fetch_assistant_response(user_input: str, user_prompt: str, model_name: str,
                 references_context += f"Título: {titulo}\nAutor: {autor}\nAno: {ano}\nPáginas: {paginas}\n\n"
 
         phase_two_prompt = (
-                f"{expert_title}, por favor responda de forma completa, detalhada e obrigatoriamente em português à seguinte solicitação: {user_input} e {user_prompt}."
-                f"\n\nHistórico do chat: {history_context}"
-                f"\n\nReferências:\n{references_context}"
-                f"\n\nInstruções detalhadas para a resposta:\n"
-                f"Responda de forma completa e detalhada à solicitação acima. Certifique-se de abordar todos os aspectos relevantes e fornecer informações claras e precisas. Use exemplos, dados e explicações adicionais para enriquecer a resposta. Estruture a resposta de forma lógica e fácil de entender.\n"
-                f"\nEstrutura da resposta:\n"
-                f"1. Introdução: Apresente o tema e explique o contexto da solicitação.\n"
-                f"2. Explicação detalhada: Aborde cada aspecto relevante da solicitação. Use subtítulos para organizar a informação.\n"
-                f"3. Exemplos e dados: Inclua exemplos práticos, estudos de caso, dados estatísticos ou informações relevantes para ilustrar os pontos mencionados.\n"
-                f"4. Análise crítica: Analise criticamente os dados e informações fornecidas, destacando sua importância, benefícios e possíveis desafios.\n"
-                f"5. Conclusão: Resuma os principais pontos da resposta e apresente uma conclusão clara e objetiva.\n"
-                f"6. Referências: Se aplicável, cite as fontes e referências utilizadas na resposta.\n"
-                f"\nUse este formato para garantir que a resposta seja abrangente, informativa e bem estruturada. Revise e edite a resposta para garantir clareza e precisão antes de enviar."
+                f"{expert_title}, 请完整、详细并且必须用葡萄牙语回答以下请求：{user_input} 和 {user_prompt}。"
+                f"\n\n聊天记录：{history_context}"
+                f"\n\n参考资料：\n{references_context}"
+                f"\n\n详细回答说明：\n"
+                f"请完整、详细并且必须用葡萄牙语回答以下请求。请确保涉及所有相关方面并提供清晰准确的信息。使用示例、数据和额外解释来丰富回答。结构化回答，使其逻辑清晰、易于理解。\n"
+                f"请求：\n"
+                f"{user_input}\n"
+                f"{user_prompt}\n"
+                f"\n回答标准：\n"
+                f"1. 引言：概述主题，并说明请求的背景。\n"
+                f"2. 详细说明：详细解释请求的每个相关方面。使用小标题来组织信息，方便阅读。\n"
+                f"3. 示例和数据：包括实际示例、案例研究、统计数据或相关数据来说明所提到的要点。\n"
+                f"4. 批判性分析：对提供的数据和信息进行批判性分析，突出其意义、好处和可能的挑战。\n"
+                f"5. 结论：总结回答的主要要点，并提出明确、客观的结论。\n"
+                f"6. 参考资料：如果适用，请引用在回答中使用的来源和参考文献。\n"
+                f"\n结构示例：\n"
+                f"1. 引言\n"
+                f"- 主题背景\n"
+                f"- 主题重要性\n"
+                f"2. 相关方面\n"
+                f"- 小标题 1\n"
+                f"  - 小标题 1 的详细说明\n"
+                f"  - 示例和数据\n"
+                f"- 小标题 2\n"
+                f"  - 小标题 2 的详细说明\n"
+                f"  - 示例和数据\n"
+                f"3. 批判性分析\n"
+                f"- 提供数据的讨论\n"
+                f"- 意义和挑战\n"
+                f"4. 结论\n"
+                f"- 主要要点总结\n"
+                f"- 明确结论\n"
+                f"5. 参考资料\n"
+                f"- 来源和参考文献列表\n"
+                f"\n请使用此格式确保回答全面、信息丰富且结构良好。在发送前，请务必审查和编辑回答以确保清晰和准确。\n"
+                f"\n---\n"
+                f"\ngen_id: [自动生成]\n"
+                f"seed: [自动生成]\n"
+                f"seed: [gerado automaticamente]\n"
         )
         phase_two_response = get_completion(phase_two_prompt)
 
@@ -398,7 +428,7 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "system", "content": "Você é一个 assistente útil."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -428,24 +458,44 @@ def refine_response(expert_title: str, phase_two_response: str, user_input: str,
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         refine_prompt = (
-            f"{expert_title}, por favor refine a seguinte resposta: {phase_two_response}. Solicitação original: {user_input} e {user_prompt}."
-            f"\n\nHistórico do chat: {history_context}"
-            f"\n\nReferências:\n{references_context}"
-            f"\n\nInstruções detalhadas para o refinamento:\n"
-            f"Refine a resposta fornecida, garantindo que ela seja mais completa e detalhada. Certifique-se de abordar todos os aspectos relevantes e fornecer informações claras e precisas. Use mais exemplos, dados e explicações adicionais para enriquecer a resposta. Estruture a resposta de forma lógica e fácil de entender.\n"
-            f"\nCritérios de refinamento:\n"
-            f"1. Introdução: Garanta que a introdução apresente o tema e explique o contexto da solicitação.\n"
-            f"2. Explicação detalhada: Verifique e expanda cada aspecto relevante da solicitação, usando subtítulos para organizar a informação.\n"
-            f"3. Exemplos e dados: Adicione mais exemplos práticos, estudos de caso, dados estatísticos ou informações relevantes para ilustrar os pontos mencionados.\n"
-            f"4. Análise crítica: Analise criticamente os dados e informações fornecidas, destacando sua importância, benefícios e possíveis desafios.\n"
-            f"5. Conclusão: Revise e reforce os principais pontos da resposta, apresentando uma conclusão clara e objetiva.\n"
-            f"6. Referências: Adicione quaisquer fontes e referências adicionais que possam ser úteis para elaborar a resposta.\n"
-            f"\nUse este formato para garantir que a resposta refinada seja mais completa, informativa e bem estruturada. Revise e edite a resposta para garantir clareza e precisão antes de enviar."
+            f"{expert_title}, 请完善以下回答：{phase_two_response}。原始请求：{user_input} 和 {user_prompt}。"
+            f"\n\n聊天记录：{history_context}"
+            f"\n\n参考资料：\n{references_context}"
+            f"\n\n回答优化说明：\n"
+            f"请优化提供的回答，确保其更加完整和详细。请确保涉及所有相关方面，并提供清晰准确的信息。使用更多的示例、数据和补充说明进一步丰富回答。将回答结构化，使其逻辑清晰，易于理解。\n"
+            f"\n优化标准：\n"
+            f"1. 引言：确保引言概述主题，并说明请求的背景。\n"
+            f"2. 详细说明：核查并扩展请求的每个相关方面，使用小标题来组织信息并便于阅读。\n"
+            f"3. 示例和数据：增加更多实际示例、案例研究、统计数据或相关数据，以说明所提到的要点。\n"
+            f"4. 批判性分析：深入分析提供的数据和信息，突出其意义、好处和可能的挑战。\n"
+            f"5. 结论：审查并强化回答的主要要点，提出明确、客观的结论。\n"
+            f"6. 参考资料：增加任何可能用来撰写回答的额外来源和参考文献。\n"
+            f"\n请使用此格式确保优化后的回答更加全面、信息丰富且结构良好。在发送前，请务必审查和编辑回答以确保清晰和准确。\n"
+            f"\n---\n"
+            f"\ngen_id: [自动生成]\n"
+            f"seed: [自动生成]\n"
+            f"seed: [gerado automaticamente]\n"
         )
 
         if not references_context:
             refine_prompt += (
-                f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada, precisa e obrigatoriamente em português, mesmo sem o uso de fontes externas."
+                f"\n\nDevido à ausência de referências fornecidas, certifique-se de fornecer uma resposta detalhada, precisa e obrigatoriamente em português:, mesmo sem o uso de fontes externas."
+                f"{expert_title}, 请完善以下回答：{phase_two_response}。原始请求：{user_input} 和 {user_prompt}。"
+                f"\n\n聊天记录：{history_context}"
+                f"\n\n参考资料：{references_context}"
+                f"\n\n回答优化说明：\n"
+                f"请优化提供的回答，确保其更加完整和详细。请确保涉及所有相关方面，并提供清晰准确的信息。使用更多的示例、数据和补充说明进一步丰富回答。将回答结构化，使其逻辑清晰，易于理解。\n"
+                f"\n优化标准：\n"
+                f"1. 引言：确保引言概述主题，并说明请求的背景。\n"
+                f"2. 详细说明：核查并扩展请求的每个相关方面，使用小标题来组织信息并便于阅读。\n"
+                f"3. 示例和数据：增加更多实际示例、案例研究、统计数据或相关数据，以说明所提到的要点。\n"
+                f"4. 批判性分析：深入分析提供的数据和信息，突出其意义、好处和可能的挑战。\n"
+                f"5. 结论：审查并强化回答的主要要点，提出明确、客观的结论。\n"
+                f"6. 参考资料：增加任何可能用来撰写回答的额外来源和参考文献。\n"
+                f"\n请使用此格式确保优化后的回答更加全面、信息丰富且结构良好。在发送前，请务必审查和编辑回答以确保清晰和准确。\n"
+                f"\n---\n"
+                f"\ngen_id: [自动生成]\n"
+                f"seed: [自动生成]\n"
             )
 
         refined_response = get_completion(refine_prompt)
@@ -466,7 +516,7 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
                 try:
                     completion = client.chat.completions.create(
                         messages=[
-                            {"role": "system", "content": "Você é um assistente útil."},
+                            {"role": "system", "content": "Você é一个 assistente útil."},
                             {"role": "user", "content": prompt},
                         ],
                         model=model_name,
@@ -496,20 +546,23 @@ def evaluate_response_with_rag(user_input: str, user_prompt: str, expert_title: 
             history_context += f"\nUsuário: {entry['user_input']}\nEspecialista: {entry['expert_response']}\n"
 
         rag_prompt = (
-            f"{expert_title}, por favor avalie a seguinte resposta: {assistant_response}. Solicitação original: {user_input} e {user_prompt}."
-            f"\n\nHistórico do chat: {history_context}"
-            f"\n\nDescreva em detalhes os possíveis pontos de melhoria na resposta fornecida, e obrigatoriamente em português:\n"
-            f"\nInstruções para avaliação e melhoria:\n"
-            f"Use as seguintes análises e abordagens para avaliar a resposta fornecida:\n"
-            f"1. Análise SWOT: Identifique os pontos fortes, fracos, oportunidades e ameaças na resposta.\n"
-            f"2. Análise Q-Estatística: Avalie a qualidade estatística das informações fornecidas na resposta.\n"
-            f"3. Análise Q-Índice: Verifique a relevância e a aplicabilidade do índice dos dados fornecidos.\n"
-            f"4. Análise PESTER: Considere os fatores políticos, econômicos, sociais, tecnológicos, ecológicos e regulatórios na resposta.\n"
-            f"5. Coerência: Avalie a coerência da resposta, verificando a fluidez e a conexão entre as partes do texto.\n"
-            f"6. Lógica: Verifique a consistência lógica da resposta, garantindo que a estrutura da informação seja razoável e coesa.\n"
-            f"7. Fluidez: Analise a fluidez do texto, garantindo uma leitura fácil e agradável.\n"
-            f"8. Análise de Lacunas: Identifique lacunas ou áreas na resposta que possam ser mais desenvolvidas ou esclarecidas.\n"
-            f"\nCom base nessas análises, forneça sugestões detalhadas de melhoria para garantir que a resposta final seja abrangente, precisa e bem estruturada."
+            f"{expert_title}, 请评估以下回答：{assistant_response}。原始请求：{user_input} 和 {user_prompt}。"
+            f"\n\n聊天记录：{history_context}"
+            f"\n\n详细描述提供的回答中的可能改进点，并且必须用葡萄牙语：\n"
+            f"\n回答评估和改进说明：\n"
+            f"请使用以下分析和方法评估提供的回答：\n"
+            f"1. SWOT 分析：识别回答中的优势、劣势、机会和威胁。\n"
+            f"2. Q-统计分析：评估回答中所提供信息的统计质量。\n"
+            f"3. Q-指数分析：检查提供数据的相关性和指数适用性。\n"
+            f"4. PESTER 分析：考虑回答中涉及的政治、经济、社会、技术、生态和监管因素。\n"
+            f"5. 连贯性：评估回答的连贯性，检查文本部分之间的流畅性和连接性。\n"
+            f"6. 逻辑性：检查回答的逻辑一致性，确保信息结构合理，整体连贯。\n"
+            f"7. 流畅性：分析文本的流畅性，确保阅读过程轻松愉快。\n"
+            f"8. 差距分析：识别回答中可以进一步发展或澄清的差距或领域。\n"
+            f"\n根据这些分析提供详细的改进建议，确保最终回答全面、准确且结构良好。\n"
+            f"\n---\n"
+            f"\ngen_id: [自动生成]\n"
+            f"seed: [自动生成]\n"
         )
 
         rag_response = get_completion(rag_prompt)
@@ -534,7 +587,7 @@ def save_expert(expert_title: str, expert_description: str):
             file.seek(0)
             json.dump(agents, file, indent=4)
     else:
-        with open(FILEPATH, 'w') as file:
+        with open(FILEPATH, 'w') as file):
             json.dump([new_expert], file, indent=4)
 
 # Interface Principal com Streamlit
