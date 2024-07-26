@@ -608,7 +608,7 @@ if 'references_df' not in st.session_state:
 
 agent_options = load_agent_options()
 
-st.image('updating (2).gif', width=300, caption='Consultor de PDFs + IA', use_column_width='always', output_format='auto')
+st.image('updating (2).gif', width=100, caption='Consultor de PDFs + IA', use_column_width='always', output_format='auto')
 st.markdown("<h1 style='text-align: center;'>Consultor de PDFs</h1>", unsafe_allow_html=True)
 st.markdown("<h2 style='text-align: center;'>Utilize nossa plataforma para consultas detalhadas em PDFs.</h2>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
