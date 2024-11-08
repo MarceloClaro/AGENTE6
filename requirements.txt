@@ -16,6 +16,7 @@ crewai==0.41.1
 crewai-tools
 PyPDF2
 matplotlib
+gTTS
 seaborn
 sentence_transformers
 chromadb
